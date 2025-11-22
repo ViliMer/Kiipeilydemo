@@ -1,0 +1,63 @@
+[gd_scene load_steps=6 format=3 uid="uid://bfq6mx5fpubw4"]
+
+[ext_resource type="PackedScene" uid="uid://yhtdqogilxpb" path="res://Scenes/hold.tscn" id="1_d155t"]
+[ext_resource type="Script" uid="uid://455j8mtmsep1" path="res://Scripts/wall.gd" id="1_yjehn"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_b57mv"]
+albedo_color = Color(0.91633344, 0.9163332, 0, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_d155t"]
+albedo_color = Color(0.56894344, 0.6361745, 1, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_m8ojb"]
+size = Vector3(2.1728516, 2.4683838, 3.1724854)
+
+[node name="Wall" type="Node3D"]
+script = ExtResource("1_yjehn")
+
+[node name="Wall lower half" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35058594, 0)
+material_override = SubResource("StandardMaterial3D_b57mv")
+size = Vector3(0.28125, 1.7011719, 7)
+
+[node name="Wall upper half" type="CSGBox3D" parent="."]
+transform = Transform3D(0.8660254, -0.5, 0, 0.5, 0.8660254, 0, 0, 0, 1, -1.2315996, 3.3154213, 0)
+material_override = SubResource("StandardMaterial3D_d155t")
+size = Vector3(0.21582031, 5.2069397, 7)
+
+[node name="Hold" parent="." instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -0.6726082, 1.9599022, -0.81012)
+
+[node name="Hold2" parent="." instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -0.58796036, 1.813288, 0.16263129)
+
+[node name="Hold3" parent="." instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.6615006, 3.6727145, -1.1711959)
+
+[node name="Hold4" parent="." instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.6615006, 3.6727145, -0.13968766)
+
+[node name="Hold5" parent="." instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -2.2912223, 4.7634244, -1.1665728)
+
+[node name="Hold6" parent="." instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -2.1324801, 4.488475, -0.33655775)
+
+[node name="Hold7" parent="." instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -0.22742248, 0.9908891, -0.6955972)
+
+[node name="Hold8" parent="." instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -0.2274225, 0.6078433, 0.03631127)
+
+[node name="Detect climber area" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.216732, 0.8197292, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Detect climber area"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.35791016, 0, -0.3287964)
+shape = SubResource("BoxShape3D_m8ojb")
+
+[node name="Climb Start Position" type="Node3D" parent="."]
+transform = Transform3D(-4.371139e-08, -0.34202012, 0.9396926, 0, 0.9396926, 0.34202012, -1, 1.4950174e-08, -4.1075268e-08, -0.669, 0.456, -0.487)
+
+[connection signal="body_entered" from="Detect climber area" to="." method="_on_detect_climber_area_body_entered"]
+[connection signal="body_exited" from="Detect climber area" to="." method="_on_detect_climber_area_body_exited"]
