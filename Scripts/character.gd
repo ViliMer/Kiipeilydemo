@@ -2,7 +2,6 @@ extends CharacterBody3D
 
 @export var move_speed: float = 5.0
 @export var jump_force: float = 4.5
-@export var mouse_sensitivity: float = 0.002
 
 enum PlayerState { MOVE, RAGDOLL, CLIMB }
 var state: PlayerState = PlayerState.MOVE
@@ -36,6 +35,7 @@ var wall: Node3D = null
 @onready var can_climb_prompt: Label = $"../Can climb prompt"
 
 var dragging: DraggingController
+var camera_controller: CameraController
 
 func _ready() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -48,18 +48,13 @@ func _ready() -> void:
 	dragging = DraggingController.new()
 	add_child(dragging)
 	dragging.init(self)
+	
+	camera_controller = CameraController.new()
+	add_child(camera_controller)
+	camera_controller.init(self)
 
 
 func _input(event: InputEvent) -> void:
-	# Mouse look
-	if event is InputEventMouseMotion:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-
-		pitch = clamp(pitch + event.relative.y * mouse_sensitivity/4,
-					  deg_to_rad(-50),
-					  deg_to_rad(50))
-		camera_pivot.rotation.x = pitch
-		
 	if Input.is_action_just_pressed("Quit"):
 		get_tree().quit()
 	
@@ -128,7 +123,6 @@ func _update_movement(delta: float) -> void:
 
 func enable_ragdoll() -> void:
 	state = PlayerState.RAGDOLL
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	velocity = Vector3.ZERO
 
 	#anim.play("A_TPose")
@@ -140,16 +134,20 @@ func enable_ragdoll() -> void:
 	collision_shape.disabled = true
 	bone_sim.active = true
 	bone_sim.physical_bones_start_simulation()
+	
+	camera_controller.enter_free_fly()
 
 
 func disable_ragdoll() -> void:
 	state = PlayerState.MOVE
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	bone_sim.active = false
 	bone_sim.physical_bones_stop_simulation()
 	skeleton.reset_bone_poses()
 	collision_shape.disabled = false
 	anim.play("Idle")
+	rotation.x = 0.0
+	rotation.z = 0.0
+	camera_controller.exit_free_fly()
 
 
 func _on_wall_can_climb(new_wall: Node3D) -> void:
@@ -164,10 +162,10 @@ func _on_wall_cant_climb() -> void:
 	
 func start_climbing():
 	state = PlayerState.CLIMB
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	var starting_holds = wall.get_starting_holds()
 	var start_pos = wall.climb_start_position
-	climbing.enter_climb(starting_holds, start_pos)
+	await climbing.enter_climb(starting_holds, start_pos)
+	camera_controller.enter_free_fly()
 
 func stop_climbing():
 	state = PlayerState.RAGDOLL
