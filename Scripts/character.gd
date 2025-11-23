@@ -5,7 +5,6 @@ extends CharacterBody3D
 @export var mouse_sensitivity: float = 0.002
 
 @export var max_distance := 50.0
-@export var drag_strength := 50.0
 
 enum PlayerState { MOVE, RAGDOLL, CLIMB }
 var state: PlayerState = PlayerState.MOVE
@@ -34,8 +33,6 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 var dragged_body: PhysicalBone3D = null
 var grab_point_local: Vector3
-var joint: PinJoint3D
-var anchor: StaticBody3D
 var initial_grab_distance := 10.0
 
 var pitch: float = 0.0
@@ -45,6 +42,8 @@ var can_climb: bool = false
 var wall: Node3D = null
 @onready var can_climb_prompt: Label = $"../Can climb prompt"
 
+var dragging: DraggingController
+
 func _ready() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	mesh.visible = true
@@ -52,6 +51,10 @@ func _ready() -> void:
 	climbing = ClimbingController.new()
 	add_child(climbing)
 	climbing.init(self)
+	
+	dragging = DraggingController.new()
+	add_child(dragging)
+	dragging.init(self)
 
 
 func _input(event: InputEvent) -> void:
@@ -105,30 +108,16 @@ func _try_grab():
 
 	var body = result["collider"]
 	if body is PhysicalBone3D:
-		# rest of your grab logic...
 		dragged_body = body
+		# local strike position so we don't always pull from the center of mass
 		grab_point_local = body.to_local(result.position)
 
-		anchor = StaticBody3D.new()
-		add_child(anchor)
-		anchor.global_transform.origin = result.position
-		
+		# distance from camera (so the dragged point stays under the cursor)
 		initial_grab_distance = camera_node.global_transform.origin.distance_to(result.position)
-
-		joint = PinJoint3D.new()
-		joint.node_a = anchor.get_path()
-		joint.node_b = body.get_path()
-		anchor.add_child(joint)
 	else:
-		print("Hit collider is not a RigidBody3D (it is ", body.get_class(), ")")
+		print("Hit collider is not a PhysicalBone3D (it is ", body.get_class(), ")")
 
 func _release():
-	if joint:
-		joint.queue_free()
-		joint = null
-		if anchor:
-			anchor.queue_free()
-			anchor = null
 	dragged_body = null
 
 func _physics_process(delta: float) -> void:
@@ -178,7 +167,7 @@ func _update_movement(delta: float) -> void:
 
 func _update_ragdoll(delta: float) -> void:
 	
-	if not (dragged_body and anchor):
+	if not (dragged_body):
 		return
 	
 	var mouse_pos := get_viewport().get_mouse_position()
@@ -193,7 +182,7 @@ func _update_ragdoll(delta: float) -> void:
 	query.collision_mask = 1  # environment
 	query.collide_with_bodies = true
 	query.collide_with_areas = false
-	query.exclude = [dragged_body, anchor]  # ignore the dragged bone itself
+	query.exclude = [dragged_body]  # ignore the dragged bone itself
 	
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit:
@@ -204,10 +193,35 @@ func _update_ragdoll(delta: float) -> void:
 	
 	var target  := ray_origin + ray_dir * target_distance
 	
-	#var target := camera_node.project_ray_origin(mouse_pos) + camera_node.project_ray_normal(mouse_pos) * 10.0
+	# ======================================================================
+	# NEW: Physically drag the bone using a critically-damped spring force
+	# ======================================================================
+	
+	# ------- Position of the grabbed point on the bone -------
+	var grabbed_world_point := dragged_body.to_global(grab_point_local)
 
-	# Move anchor toward target smoothly
-	anchor.global_transform.origin = anchor.global_transform.origin.lerp(target, drag_strength * delta)
+	# ------- Linear spring behavior (no angular component) -------
+	var stiffness := 50.0         # how strongly it pulls toward the cursor
+	var damping := 25.0            # reduces overshoot
+	var strength := 1.0           # global multiplier for drag "power"
+
+	# Current velocity of the whole bone
+	var current_vel := dragged_body.linear_velocity
+
+	# Desired velocity for the grabbed point
+	var displacement := target - grabbed_world_point
+	var desired_vel := displacement * stiffness
+
+	# Damping reduces existing velocity
+	var correction_vel := (desired_vel - current_vel) * damping * delta * strength
+
+	# Apply correction to the whole bone (no angular effect)
+	dragged_body.linear_velocity += correction_vel
+
+	# Optional: clamp for stability
+	var max_speed := 25.0
+	if dragged_body.linear_velocity.length() > max_speed:
+		dragged_body.linear_velocity = dragged_body.linear_velocity.normalized() * max_speed
 
 func enable_ragdoll() -> void:
 	# Enter ragdoll state
