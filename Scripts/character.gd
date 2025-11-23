@@ -73,8 +73,11 @@ func _input(event: InputEvent) -> void:
 		disable_ragdoll()
 	if Input.is_action_just_pressed("Interact") and can_climb:
 		print("Start climbing")
-		
 		start_climbing()
+		can_climb = false
+	elif Input.is_action_just_pressed("Interact") and state == PlayerState.CLIMB:
+		print("Stop climbing")
+		stop_climbing()
 	
 	if state == PlayerState.RAGDOLL and event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -282,3 +285,8 @@ func start_climbing():
 	var starting_holds = wall.get_starting_holds()
 	var start_pos = wall.climb_start_position
 	climbing.enter_climb(starting_holds, start_pos)
+
+func stop_climbing():
+	state = PlayerState.RAGDOLL
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	climbing.exit_climb()

@@ -57,7 +57,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.35791016, 0, -0.3287964)
 shape = SubResource("BoxShape3D_m8ojb")
 
 [node name="Climb Start Position" type="Node3D" parent="."]
-transform = Transform3D(-4.371139e-08, -0.34202012, 0.9396926, 0, 0.9396926, 0.34202012, -1, 1.4950174e-08, -4.1075268e-08, -0.669, 0.456, -0.487)
+transform = Transform3D(-4.371139e-08, -0.34202012, 0.9396926, 0, 0.9396926, 0.34202012, -1, 1.4950174e-08, -4.1075268e-08, -0.42217332, 0.5458376, -0.3155887)
 
 [connection signal="body_entered" from="Detect climber area" to="." method="_on_detect_climber_area_body_entered"]
 [connection signal="body_exited" from="Detect climber area" to="." method="_on_detect_climber_area_body_exited"]
