@@ -59,10 +59,13 @@ func _handle_third_person_input(event):
 		camera_pivot.global_rotation.x = pitch
 
 func _handle_free_fly_input(event):
-	var holding_space := Input.is_action_pressed("Jump")
+	var free_mouse = true
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		free_mouse = false
+	#var holding_space := Input.is_action_pressed("Jump")
 
 	# Mouse look (disabled while holding space for dragging)
-	if event is InputEventMouseMotion and not holding_space:
+	if event is InputEventMouseMotion and not free_mouse:
 		yaw -= event.relative.x * sensitivity
 		pitch = clamp(
 			pitch - event.relative.y * sensitivity,
@@ -73,9 +76,12 @@ func _handle_free_fly_input(event):
 
 	# Mouse mode toggling
 	if Input.is_action_just_pressed("Jump"):
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	if Input.is_action_just_released("Jump"):
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		if Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		else:
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	#if Input.is_action_just_released("Jump"):
+	#	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _physics_process(delta):
 	if not player:
