@@ -1,5 +1,7 @@
 extends Node3D
 
+@export var hold_name: String
+
 @onready var hand_grab_point: Marker3D = $hand_grab_point
 @onready var foot_grab_point: Marker3D = $foot_grab_point
 

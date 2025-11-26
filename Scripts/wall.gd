@@ -1,12 +1,14 @@
+class_name Route
 extends Node3D
 
 signal can_climb(route: Node3D)
 signal cant_climb()
 
-@onready var lh_start: Node3D = $Hold
-@onready var rh_start: Node3D = $Hold2
-@onready var lf_start: Node3D = $Hold7
-@onready var rf_start: Node3D = $Hold8
+@onready var holds: Node3D = $Holds
+@onready var lh_start: Node3D = $Holds/Hold
+@onready var rh_start: Node3D = $Holds/Hold2
+@onready var lf_start: Node3D = $Holds/Hold7
+@onready var rf_start: Node3D = $Holds/Hold8
 @onready var climb_start_position: Node3D = $"Climb Start Position"
 
 
@@ -26,3 +28,6 @@ func get_starting_holds():
 		"lf": lf_start,
 		"rf": rf_start,
 	}
+
+func get_holds():
+	return holds.get_children()

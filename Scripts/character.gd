@@ -167,8 +167,10 @@ func _on_wall_can_climb(new_wall: Node3D) -> void:
 func _on_wall_cant_climb() -> void:
 	can_climb = false
 	can_climb_prompt.visible = false
+	wall = null
 	
 func start_climbing():
+	SignalBus.start_route.emit(wall)
 	state = PlayerState.CLIMB
 	var starting_holds = wall.get_starting_holds()
 	var start_pos = wall.climb_start_position

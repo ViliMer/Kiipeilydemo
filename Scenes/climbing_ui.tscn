@@ -1,0 +1,202 @@
+[gd_scene load_steps=2 format=3 uid="uid://mdxbvyus8wgk"]
+
+[ext_resource type="Script" uid="uid://di28uocwl7umq" path="res://Scripts/climbing_ui.gd" id="1_1dsf5"]
+
+[node name="Climbing UI" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_1dsf5")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -50.0
+offset_bottom = 50.0
+grow_horizontal = 0
+theme_override_constants/margin_top = 50
+theme_override_constants/margin_right = 50
+
+[node name="GridContainer" type="GridContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/h_separation = 30
+theme_override_constants/v_separation = 30
+columns = 2
+
+[node name="Left Hand Container" type="VBoxContainer" parent="MarginContainer/GridContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/GridContainer/Left Hand Container"]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/GridContainer/Left Hand Container/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/GridContainer/Left Hand Container/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Left Hand Strength:"
+horizontal_alignment = 1
+
+[node name="Left Hand Strength Edit" type="LineEdit" parent="MarginContainer/GridContainer/Left Hand Container/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+alignment = 1
+context_menu_enabled = false
+emoji_menu_enabled = false
+
+[node name="Left Hand Strength Slider" type="HSlider" parent="MarginContainer/GridContainer/Left Hand Container/VBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+max_value = 1000.0
+tick_count = 10
+ticks_on_borders = true
+ticks_position = 1
+
+[node name="Release Left Hand" type="Button" parent="MarginContainer/GridContainer/Left Hand Container"]
+layout_mode = 2
+text = "Release
+Left Hand"
+
+[node name="Left Hand Options" type="OptionButton" parent="MarginContainer/GridContainer/Left Hand Container"]
+layout_mode = 2
+
+[node name="Reach Left Hand" type="Button" parent="MarginContainer/GridContainer/Left Hand Container"]
+layout_mode = 2
+toggle_mode = true
+text = "Reach
+Left Hand"
+
+[node name="Right Hand Container" type="VBoxContainer" parent="MarginContainer/GridContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/GridContainer/Right Hand Container"]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/GridContainer/Right Hand Container/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/GridContainer/Right Hand Container/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Right Hand Strength:"
+horizontal_alignment = 1
+
+[node name="Right Hand Strength Edit" type="LineEdit" parent="MarginContainer/GridContainer/Right Hand Container/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+alignment = 1
+context_menu_enabled = false
+emoji_menu_enabled = false
+
+[node name="Right Hand Strength Slider" type="HSlider" parent="MarginContainer/GridContainer/Right Hand Container/VBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+max_value = 1000.0
+tick_count = 10
+ticks_on_borders = true
+ticks_position = 1
+
+[node name="Release Right Hand" type="Button" parent="MarginContainer/GridContainer/Right Hand Container"]
+layout_mode = 2
+text = "Release
+Right Hand"
+
+[node name="Right Hand Options" type="OptionButton" parent="MarginContainer/GridContainer/Right Hand Container"]
+layout_mode = 2
+
+[node name="Reach Right Hand" type="Button" parent="MarginContainer/GridContainer/Right Hand Container"]
+layout_mode = 2
+toggle_mode = true
+text = "Reach
+Righ Hand"
+
+[node name="Left Leg Container" type="VBoxContainer" parent="MarginContainer/GridContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/GridContainer/Left Leg Container"]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/GridContainer/Left Leg Container/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/GridContainer/Left Leg Container/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Left Leg Strength:"
+horizontal_alignment = 1
+
+[node name="Left Leg Strength Edit" type="LineEdit" parent="MarginContainer/GridContainer/Left Leg Container/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+alignment = 1
+context_menu_enabled = false
+emoji_menu_enabled = false
+
+[node name="Left Leg Strength Slider" type="HSlider" parent="MarginContainer/GridContainer/Left Leg Container/VBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+max_value = 1000.0
+tick_count = 10
+ticks_on_borders = true
+ticks_position = 1
+
+[node name="Release Left Leg" type="Button" parent="MarginContainer/GridContainer/Left Leg Container"]
+layout_mode = 2
+text = "Release
+Left Leg
+"
+
+[node name="Left Leg Options" type="OptionButton" parent="MarginContainer/GridContainer/Left Leg Container"]
+layout_mode = 2
+
+[node name="Reach Left Leg" type="Button" parent="MarginContainer/GridContainer/Left Leg Container"]
+layout_mode = 2
+toggle_mode = true
+text = "Reach
+Left Leg"
+
+[node name="Right Leg Container" type="VBoxContainer" parent="MarginContainer/GridContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/GridContainer/Right Leg Container"]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/GridContainer/Right Leg Container/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/GridContainer/Right Leg Container/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Right Leg Strength:"
+horizontal_alignment = 1
+
+[node name="Right Leg Strength Edit" type="LineEdit" parent="MarginContainer/GridContainer/Right Leg Container/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+alignment = 1
+context_menu_enabled = false
+emoji_menu_enabled = false
+
+[node name="Right Leg Strength Slider" type="HSlider" parent="MarginContainer/GridContainer/Right Leg Container/VBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+max_value = 1000.0
+tick_count = 10
+ticks_on_borders = true
+ticks_position = 1
+
+[node name="Release Right Leg" type="Button" parent="MarginContainer/GridContainer/Right Leg Container"]
+layout_mode = 2
+text = "Release
+Right Leg"
+
+[node name="Right Leg Options" type="OptionButton" parent="MarginContainer/GridContainer/Right Leg Container"]
+layout_mode = 2
+
+[node name="Reach Right Leg" type="Button" parent="MarginContainer/GridContainer/Right Leg Container"]
+layout_mode = 2
+toggle_mode = true
+text = "Reach
+Right Leg"

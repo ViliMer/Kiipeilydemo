@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://bwe8iipuxi7cm"]
+[gd_scene load_steps=6 format=3 uid="uid://bwe8iipuxi7cm"]
 
 [ext_resource type="PackedScene" uid="uid://bfq6mx5fpubw4" path="res://Scenes/wall.tscn" id="1_jjgbg"]
 [ext_resource type="PackedScene" uid="uid://0h2418b61ir8" path="res://Scenes/character.tscn" id="2_bo1nx"]
+[ext_resource type="PackedScene" uid="uid://mdxbvyus8wgk" path="res://Scenes/climbing_ui.tscn" id="3_8gbba"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7u77a"]
 albedo_color = Color(0.49803922, 0.5294118, 0.50980395, 1)
@@ -69,6 +70,8 @@ grow_vertical = 2
 text = "Press \"E\" to start climb"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Climbing UI" parent="." instance=ExtResource("3_8gbba")]
 
 [connection signal="can_climb" from="Wall" to="Character" method="_on_wall_can_climb"]
 [connection signal="cant_climb" from="Wall" to="Character" method="_on_wall_cant_climb"]
