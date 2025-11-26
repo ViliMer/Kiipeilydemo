@@ -34,7 +34,7 @@ collision_layer = 0
 shape = SubResource("ConcavePolygonShape3D_3bnm2")
 
 [node name="hand_grab_point" type="Marker3D" parent="."]
-transform = Transform3D(-0.30609697, -2.6759848e-08, 0, -1.16971e-15, 1.3379924e-08, -0.30609697, 2.6759848e-08, -0.30609697, -1.3379924e-08, 0, 0.15281112, 0.07040478)
+transform = Transform3D(-0.30609697, -2.6759848e-08, 0, -1.16971e-15, 1.3379924e-08, -0.30609697, 2.6759848e-08, -0.30609697, -1.3379924e-08, 0, 0.15281112, 0.19343524)
 
 [node name="foot_grab_point" type="Marker3D" parent="."]
 transform = Transform3D(0.30609697, 0, 0, 0, -1.3379924e-08, 0.30609697, 0, -0.30609697, -1.3379924e-08, 0, 0.17196126, 0.2462139)

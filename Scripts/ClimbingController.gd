@@ -206,10 +206,62 @@ func _remove_limb_locks() -> void:
 		physical_bone.axis_lock_linear_z = false
 
 
-func update_climbing(delta) -> void:
-	# Basic version: simply hold onto the targets
-	# IK solvers will take care of posing the character.
-	pass
+func update_climbing(_delta: float) -> void:
+
+	if character.bone_sim == null:
+		return
+
+	# Get physical bones
+	var hip_bone = character.bone_sim.find_child("Physical Bone Hips")
+	var chest_bone = character.bone_sim.find_child("Physical Bone Chest")
+	var left_shoulder_bone = character.bone_sim.find_child("Physical Bone LeftUpperArm")
+	var right_shoulder_bone = character.bone_sim.find_child("Physical Bone RightUpperArm")
+
+	# Example spring constants
+	var hand_force = 50.0
+	var foot_force = 700.0
+
+	# HANDS
+	if attached_holds["lh"]:
+		var target = attached_holds["lh"].global_position
+		var body_pos = chest_bone.global_position
+		var direction = (target - body_pos).normalized()
+		_apply_force(chest_bone, direction, hand_force)
+		
+		#Torque tau = F*r <=> F = tau/r
+		#var torque = 100
+		#var torque_force = torque / (target - body_pos).length()
+		#var forward = character.wall.find_child("Wall upper half").global_transform.basis * Vector3(0, 0, -1)
+		#_apply_force(left_shoulder_bone, -forward, torque_force)
+	
+	if attached_holds["rh"]:
+		var target = attached_holds["rh"].global_position
+		var body_pos = chest_bone.global_position
+		var direction = (target - body_pos).normalized()
+		_apply_force(chest_bone, direction, hand_force)
+		
+		#Torque tau = F*r <=> F = tau/r
+		#var torque = 100
+		#var torque_force = torque / (target - body_pos).length()
+		#var forward = character.wall.find_child("Wall upper half").global_transform.basis * Vector3(0, 0, -1)
+		#_apply_force(right_shoulder_bone, -forward, torque_force)
+	
+	# FEET
+	if attached_holds["lf"]:
+		var target = attached_holds["lf"].global_position
+		var body_pos = hip_bone.global_position
+		var direction = (body_pos - target).normalized()
+		_apply_force(hip_bone, direction, foot_force)
+
+	if attached_holds["rf"]:
+		var target = attached_holds["rf"].global_position
+		var body_pos = hip_bone.global_position
+		var direction = (body_pos - target).normalized()
+		_apply_force(hip_bone, direction, foot_force)
+
+func _apply_force(body_bone: PhysicalBone3D, direction: Vector3, magnitude: float) -> void:
+	var force = direction * magnitude
+	body_bone.external_force += force
 
 func exit_climb():
 	attached_holds = {"lh":null, "rh":null, "lf":null, "rf":null}

@@ -18,11 +18,16 @@ script = ExtResource("1_yjehn")
 [node name="Wall lower half" type="CSGBox3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35058594, 0)
 material_override = SubResource("StandardMaterial3D_b57mv")
+use_collision = true
+collision_layer = 256
 size = Vector3(0.28125, 1.7011719, 7)
 
 [node name="Wall upper half" type="CSGBox3D" parent="."]
 transform = Transform3D(0.8660254, -0.5, 0, 0.5, 0.8660254, 0, 0, 0, 1, -1.2315996, 3.3154213, 0)
+rotation_edit_mode = 2
 material_override = SubResource("StandardMaterial3D_d155t")
+use_collision = true
+collision_layer = 256
 size = Vector3(0.21582031, 5.2069397, 7)
 
 [node name="Hold" parent="." instance=ExtResource("1_d155t")]

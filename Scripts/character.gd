@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const PhysicalBoneExtension = preload("res://Scripts/physical_bone_extension.gd")
+
 @export var move_speed: float = 5.0
 @export var jump_force: float = 4.5
 
@@ -27,6 +29,7 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 @onready var right_foot_target: Node3D = $"Right Foot Target"
 @onready var left_foot_target: Node3D = $"Left Foot Target"
 
+
 var pitch: float = 0.0
 
 var climbing: ClimbingController
@@ -52,6 +55,11 @@ func _ready() -> void:
 	camera_controller = CameraController.new()
 	add_child(camera_controller)
 	camera_controller.init(self)
+	
+	var physical_bones = bone_sim.get_children()
+	for physical_bone in physical_bones:
+		if physical_bone is PhysicalBone3D:
+			physical_bone.set_script(PhysicalBoneExtension)
 
 
 func _input(event: InputEvent) -> void:
