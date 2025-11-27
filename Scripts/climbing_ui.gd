@@ -51,7 +51,8 @@ func _connect_ui() -> void:
 		SignalBus.reach_left_hand.emit()
 	)
 
-	left_hand_options.item_selected.connect(func(value: String):
+	left_hand_options.item_selected.connect(func(value: int):
+		print(value)
 		SignalBus.left_hand_target_changed.emit(value)
 	)
 
@@ -67,7 +68,7 @@ func _connect_ui() -> void:
 		SignalBus.reach_right_hand.emit()
 	)
 
-	right_hand_options.item_selected.connect(func(value: String):
+	right_hand_options.item_selected.connect(func(value: int):
 		SignalBus.right_hand_target_changed.emit(value)
 	)
 
@@ -76,15 +77,15 @@ func _connect_ui() -> void:
 	left_leg_strength_edit.text_submitted.connect(_on_left_leg_edit_submitted)
 
 	release_left_leg.pressed.connect(func():
-		SignalBus.release_left_leg.emit()
+		SignalBus.release_left_foot.emit()
 	)
 
 	reach_left_leg.pressed.connect(func():
-		SignalBus.reach_left_leg.emit()
+		SignalBus.reach_left_foot.emit()
 	)
 
-	left_leg_options.item_selected.connect(func(value: String):
-		SignalBus.left_leg_target_changed.emit(value)
+	left_leg_options.item_selected.connect(func(value: int):
+		SignalBus.left_foot_target_changed.emit(value)
 	)
 
 	# RIGHT LEG
@@ -92,14 +93,14 @@ func _connect_ui() -> void:
 	right_leg_strength_edit.text_submitted.connect(_on_right_leg_edit_submitted)
 
 	release_right_leg.pressed.connect(func():
-		SignalBus.release_right_leg.emit()
+		SignalBus.release_right_foot.emit()
 	)
 
 	reach_right_leg.pressed.connect(func():
-		SignalBus.reach_right_leg.emit())
+		SignalBus.reach_right_foot.emit())
 	
-	right_leg_options.item_selected.connect(func(value: String):
-		SignalBus.right_leg_target_changed.emit(value)
+	right_leg_options.item_selected.connect(func(value: int):
+		SignalBus.right_foot_target_changed.emit(value)
 	)
 
 func _on_left_hand_slider_changed(value: float) -> void:

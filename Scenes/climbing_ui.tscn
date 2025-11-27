@@ -24,6 +24,7 @@ theme_override_constants/margin_right = 50
 
 [node name="GridContainer" type="GridContainer" parent="MarginContainer"]
 layout_mode = 2
+focus_behavior_recursive = 1
 theme_override_constants/h_separation = 30
 theme_override_constants/v_separation = 30
 columns = 2
@@ -64,6 +65,8 @@ Left Hand"
 
 [node name="Left Hand Options" type="OptionButton" parent="MarginContainer/GridContainer/Left Hand Container"]
 layout_mode = 2
+focus_mode = 1
+allow_reselect = true
 
 [node name="Reach Left Hand" type="Button" parent="MarginContainer/GridContainer/Left Hand Container"]
 layout_mode = 2

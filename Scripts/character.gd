@@ -34,7 +34,7 @@ var pitch: float = 0.0
 
 var climbing: ClimbingController
 var can_climb: bool = false
-var wall: Node3D = null
+var route: Route = null
 @onready var can_climb_prompt: Label = $"../Can climb prompt"
 
 var dragging: DraggingController
@@ -158,23 +158,21 @@ func disable_ragdoll() -> void:
 	camera_controller.exit_free_fly()
 
 
-func _on_wall_can_climb(new_wall: Node3D) -> void:
+func _on_wall_can_climb(new_route: Node3D) -> void:
 	can_climb = true
 	can_climb_prompt.visible = true
-	wall = new_wall
+	route = new_route
 
 
 func _on_wall_cant_climb() -> void:
 	can_climb = false
 	can_climb_prompt.visible = false
-	wall = null
+	route = null
 	
 func start_climbing():
-	SignalBus.start_route.emit(wall)
+	SignalBus.start_route.emit(route)
 	state = PlayerState.CLIMB
-	var starting_holds = wall.get_starting_holds()
-	var start_pos = wall.climb_start_position
-	await climbing.enter_climb(starting_holds, start_pos)
+	await climbing.enter_climb(route)
 	camera_controller.enter_free_fly()
 
 func stop_climbing():

@@ -3,6 +3,7 @@ extends Node
 
 var character: CharacterBody3D
 var skeleton: Skeleton3D
+var route: Route
 
 var left_hand_target: Node3D
 var right_hand_target: Node3D
@@ -13,6 +14,11 @@ var right_hand_force = 50.0
 var left_hand_force = 50.0
 var right_foot_force = 50.0
 var left_foot_force = 50.0
+
+var reaching_left_hand = false
+var reaching_right_hand = false
+var reaching_left_foot = false
+var reaching_right_foot = false
 
 var bone_names = {
 	"root":				"Physical Bone Root",
@@ -64,19 +70,26 @@ func connect_signals() -> void:
 	# Right hand UI signals
 	SignalBus.right_hand_strength_changed.connect(_on_right_hand_strength_changed)
 	SignalBus.release_right_hand.connect(_on_release_right_hand)
-	SignalBus.reach_right_hand.connect(func(): print("Reach right hand pressed"))
+	SignalBus.right_hand_target_changed.connect(_on_right_hand_target_changed)
+	SignalBus.reach_right_hand.connect(_on_reach_right_hand)
 	
 	# Left leg UI signals
 	SignalBus.left_leg_strength_changed.connect(_on_left_leg_strength_changed)
-	SignalBus.release_left_leg.connect(_on_release_left_foot)
-	SignalBus.reach_left_leg.connect(func(): print("Reach left leg pressed"))
+	SignalBus.release_left_foot.connect(_on_release_left_foot)
+	SignalBus.left_foot_target_changed.connect(_on_left_foot_target_changed)
+	SignalBus.reach_left_foot.connect(_on_reach_left_foot)
 	
 	# Right leg UI signals
 	SignalBus.right_leg_strength_changed.connect(_on_right_leg_strength_changed)
-	SignalBus.release_right_leg.connect(_on_release_right_foot)
-	SignalBus.reach_right_leg.connect(func(): print("Reach right leg pressed"))
+	SignalBus.release_right_foot.connect(_on_release_right_foot)
+	SignalBus.right_foot_target_changed.connect(_on_right_foot_target_changed)
+	SignalBus.reach_right_foot.connect(_on_reach_right_foot)
 
-func enter_climb(start_holds: Dictionary, start_pos: Node3D):
+func enter_climb(new_route: Route):
+	route = new_route
+	
+	var start_holds = route.get_starting_holds()
+	var start_pos = route.climb_start_position
 	
 	if character.collision_shape:
 		character.collision_shape.disabled = true
@@ -211,6 +224,8 @@ func release_limb(limb: String) -> void:
 	physical_bone.axis_lock_linear_x = false
 	physical_bone.axis_lock_linear_y = false
 	physical_bone.axis_lock_linear_z = false
+	physical_bone.axis_lock_angular_x = false
+	physical_bone.axis_lock_angular_y = false
 	
 	attached_holds[limb] = null
 
@@ -229,6 +244,10 @@ func _add_limb_lock(code: String, _hold: Node3D) -> void:
 	physical_bone.axis_lock_linear_x = true
 	physical_bone.axis_lock_linear_y = true
 	physical_bone.axis_lock_linear_z = true
+	physical_bone.axis_lock_angular_x = true
+	if code == "lh" or code == "rh":
+		physical_bone.axis_lock_angular_y = true
+	#physical_bone.axis_lock_angular_z = true
 	
 	if physical_bone == null:
 		push_warning("No physical bone found for %s" % bone_name)
@@ -248,6 +267,8 @@ func _remove_limb_locks() -> void:
 		physical_bone.axis_lock_linear_x = false
 		physical_bone.axis_lock_linear_y = false
 		physical_bone.axis_lock_linear_z = false
+		physical_bone.axis_lock_angular_x = false
+		physical_bone.axis_lock_angular_y = false
 
 
 func update_climbing(_delta: float) -> void:
@@ -258,15 +279,15 @@ func update_climbing(_delta: float) -> void:
 	# Get physical bones
 	var hip_bone = character.bone_sim.find_child("Physical Bone Hips")
 	var chest_bone = character.bone_sim.find_child("Physical Bone Chest")
-	var left_shoulder_bone = character.bone_sim.find_child("Physical Bone LeftUpperArm")
+	var left_shoulder_bone = character.bone_sim.find_child("Physical Bone LeftShoulder")
 	var right_shoulder_bone = character.bone_sim.find_child("Physical Bone RightUpperArm")
 
 	# HANDS
 	if attached_holds["lh"]:
 		var target = attached_holds["lh"].global_position
-		var body_pos = chest_bone.global_position
+		var body_pos = left_shoulder_bone.global_position
 		var direction = (target - body_pos).normalized()
-		_apply_force(chest_bone, direction, left_hand_force)
+		_apply_force(left_shoulder_bone, direction, left_hand_force)
 		
 		#Torque tau = F*r <=> F = tau/r
 		#var torque = 100
@@ -278,7 +299,7 @@ func update_climbing(_delta: float) -> void:
 		var target = attached_holds["rh"].global_position
 		var body_pos = chest_bone.global_position
 		var direction = (target - body_pos).normalized()
-		_apply_force(chest_bone, direction, right_hand_force)
+		_apply_force(right_shoulder_bone, direction, right_hand_force)
 		
 		#Torque tau = F*r <=> F = tau/r
 		#var torque = 100
@@ -298,6 +319,31 @@ func update_climbing(_delta: float) -> void:
 		var body_pos = hip_bone.global_position
 		var direction = (body_pos - target).normalized()
 		_apply_force(hip_bone, direction, right_foot_force)
+	
+	reach()
+
+func reach() -> void:
+	var hand_reach_force = 50.0
+	var foot_reach_force = 100.0
+	if reaching_left_hand and not attached_holds["lh"]:
+		var left_hand = character.bone_sim.find_child("Physical Bone LeftHand")
+		var dir = (left_hand_target.global_position - left_hand.global_position)
+		_apply_force(left_hand, dir, hand_reach_force)
+	
+	if reaching_right_hand and not attached_holds["rh"]:
+		var right_hand = character.bone_sim.find_child("Physical Bone RightHand")
+		var dir = (right_hand_target.global_position - right_hand.global_position)
+		_apply_force(right_hand, dir, hand_reach_force)
+	
+	if reaching_left_foot and not attached_holds["lf"]:
+		var left_foot = character.bone_sim.find_child("Physical Bone LeftFoot")
+		var dir = (left_foot_target.global_position - left_foot.global_position)
+		_apply_force(left_foot, dir, foot_reach_force)
+	
+	if reaching_right_foot and not attached_holds["rf"]:
+		var right_foot = character.bone_sim.find_child("Physical Bone RightFoot")
+		var dir = (right_foot_target.global_position - right_foot.global_position)
+		_apply_force(right_foot, dir, foot_reach_force)
 
 func _apply_force(body_bone: PhysicalBone3D, direction: Vector3, magnitude: float) -> void:
 	var force = direction * magnitude
@@ -306,6 +352,7 @@ func _apply_force(body_bone: PhysicalBone3D, direction: Vector3, magnitude: floa
 func exit_climb():
 	attached_holds = {"lh":null, "rh":null, "lf":null, "rf":null}
 	_remove_limb_locks()
+	route = null
 
 func _on_left_hand_strength_changed(value: float) -> void:
 	left_hand_force = value
@@ -340,8 +387,39 @@ func _on_release_right_foot() -> void:
 	print("Release right foot pressed")
 
 func _on_reach_left_hand() -> void:
-	
-	pass
+	reaching_left_hand = not reaching_left_hand
+	""" If I want to use IK for reaching:
+	return
+	if character.left_hand_ik:
+		if character.left_hand_ik.is_running():
+			character.left_hand_ik.stop()
+		else:
+			character.left_hand_ik.start()
+	"""
 
-func _on_left_hand_target_changed(value: String) -> void:
-	print(value)
+func _on_reach_right_hand() -> void:
+	reaching_right_hand = not reaching_right_hand
+
+func _on_reach_left_foot() -> void:
+	reaching_left_foot = not reaching_left_foot
+
+func _on_reach_right_foot() -> void:
+	print("on reach right foot in climbing controller")
+	reaching_right_foot = not reaching_right_foot
+
+func _on_left_hand_target_changed(value: int) -> void:
+	# To be specific, value is the index of the selected item in the dropdown menu. Should be the same as the index of the hold in route.get_holds()
+	var hold = route.get_holds()[value]
+	left_hand_target.global_transform = hold.get_hand_grab_transform()
+
+func _on_right_hand_target_changed(value: int) -> void:
+	var hold = route.get_holds()[value]
+	right_hand_target.global_transform = hold.get_hand_grab_transform()
+
+func _on_left_foot_target_changed(value: int) -> void:
+	var hold = route.get_holds()[value]
+	left_foot_target.global_transform = hold.get_foot_grab_transform()
+
+func _on_right_foot_target_changed(value: int) -> void:
+	var hold = route.get_holds()[value]
+	right_foot_target.global_transform = hold.get_foot_grab_transform()
