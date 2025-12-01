@@ -53,6 +53,7 @@ emoji_menu_enabled = false
 [node name="Left Hand Strength Slider" type="HSlider" parent="MarginContainer/GridContainer/Left Hand Container/VBoxContainer"]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
+min_value = -1000.0
 max_value = 1000.0
 tick_count = 10
 ticks_on_borders = true
@@ -98,6 +99,7 @@ emoji_menu_enabled = false
 [node name="Right Hand Strength Slider" type="HSlider" parent="MarginContainer/GridContainer/Right Hand Container/VBoxContainer"]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
+min_value = -1000.0
 max_value = 1000.0
 tick_count = 10
 ticks_on_borders = true
@@ -141,6 +143,7 @@ emoji_menu_enabled = false
 [node name="Left Leg Strength Slider" type="HSlider" parent="MarginContainer/GridContainer/Left Leg Container/VBoxContainer"]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
+min_value = -1000.0
 max_value = 1000.0
 tick_count = 10
 ticks_on_borders = true
@@ -185,6 +188,7 @@ emoji_menu_enabled = false
 [node name="Right Leg Strength Slider" type="HSlider" parent="MarginContainer/GridContainer/Right Leg Container/VBoxContainer"]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
+min_value = -1000.0
 max_value = 1000.0
 tick_count = 10
 ticks_on_borders = true

@@ -29,7 +29,6 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 @onready var right_foot_target: Node3D = $"Right Foot Target"
 @onready var left_foot_target: Node3D = $"Left Foot Target"
 
-
 var pitch: float = 0.0
 
 var climbing: ClimbingController
@@ -40,7 +39,32 @@ var route: Route = null
 var dragging: DraggingController
 var camera_controller: CameraController
 
+var bone_names = {
+	"Root":				"Physical Bone Root",
+	"Hips":				"Physical Bone Hips",
+	"Spine":			"Physical Bone Spine",
+	"Chest":			"Physical Bone Chest",
+	"UpperChest":		"Physical Bone UpperChest",
+	"Neck":				"Physical Bone Neck",
+	"LeftShoulder":		"Physical Bone LeftShoulder",
+	"LeftUpperArm":		"Physical Bone LeftUpperArm",
+	"LeftLowerArm":		"Physical Bone LeftLowerArm",
+	"LeftHand":			"Physical Bone LeftHand",
+	"RightShoulder":	"Physical Bone RightShoulder",
+	"RightUpperArm":	"Physical Bone RightUpperArm",
+	"RightLowerArm":	"Physical Bone RightLowerArm",
+	"RightHand":		"Physical Bone RightHand",
+	"LeftUpperLeg":		"Physical Bone LeftUpperLeg",
+	"LeftLowerLeg":		"Physical Bone LeftLowerLeg",
+	"LeftFoot":			"Physical Bone LeftFoot",
+	"RightUpperLeg":	"Physical Bone RightUpperLeg",
+	"RightLowerLeg":	"Physical Bone RightLowerLeg",
+	"RightFoot":		"Physical Bone RightFoot",
+}
+var bone_rotation_offsets = {} #Store offsets that allow transformation between physical bones and bones
+
 func _ready() -> void:
+	compute_offsets()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	mesh.visible = true
 	
@@ -141,7 +165,7 @@ func enable_ragdoll() -> void:
 
 	collision_shape.disabled = true
 	bone_sim.active = true
-	bone_sim.physical_bones_start_simulation()
+	run_bone_sim(true, ["Root"])
 	
 	camera_controller.enter_free_fly()
 
@@ -149,7 +173,7 @@ func enable_ragdoll() -> void:
 func disable_ragdoll() -> void:
 	state = PlayerState.MOVE
 	bone_sim.active = false
-	bone_sim.physical_bones_stop_simulation()
+	run_bone_sim(false)
 	skeleton.reset_bone_poses()
 	collision_shape.disabled = false
 	anim.play("Idle")
@@ -178,3 +202,42 @@ func start_climbing():
 func stop_climbing():
 	state = PlayerState.RAGDOLL
 	climbing.exit_climb()
+
+func compute_offsets():
+	
+	var skel_world := skeleton.global_transform
+	for bone_name in bone_names:
+		var bone_idx = skeleton.find_bone(bone_name)
+		if bone_idx == -1:
+			continue
+		
+		var physical_bone_name = bone_names[bone_name]
+		var phys_bone: PhysicalBone3D = bone_sim.find_child(physical_bone_name)
+		if phys_bone == null:
+			continue
+		
+		# --- 1. Capture PHYSICAL BONE REST (world space) ---
+		var phys_rest_world: Transform3D = phys_bone.global_transform
+		
+		# Convert physical rest → skeleton space
+		var phys_rest_skel: Transform3D = skel_world.affine_inverse() * phys_rest_world
+		
+		# --- 2. Skeleton rest (in skeleton space) ---
+		var skel_rest_skel: Transform3D = skeleton.get_bone_global_rest(bone_idx)
+		
+		# --- 3. Compute rest offset ---
+		# PhysicalBone orientation = SkeletonBone orientation * offset
+		var offset := skel_rest_skel.affine_inverse() * phys_rest_skel
+		
+		bone_rotation_offsets[bone_name] = offset
+
+func run_bone_sim(run: bool, include: Array[StringName] = []) -> void:
+	if not run:
+		bone_sim.physical_bones_stop_simulation()
+		return
+	
+	if include.is_empty():
+		bone_sim.physical_bones_start_simulation()
+		return
+	
+	bone_sim.physical_bones_start_simulation(include)

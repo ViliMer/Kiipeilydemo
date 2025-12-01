@@ -5,10 +5,10 @@ signal can_climb(route: Node3D)
 signal cant_climb()
 
 @onready var holds: Node3D = $Holds
-@onready var lh_start: Node3D = $Holds/Hold
-@onready var rh_start: Node3D = $Holds/Hold2
-@onready var lf_start: Node3D = $Holds/Hold7
-@onready var rf_start: Node3D = $Holds/Hold8
+@onready var lh_start: Hold = $"Holds/Hold 4"
+@onready var rh_start: Hold = $"Holds/Hold 3"
+@onready var lf_start: Hold = $"Holds/Hold 2"
+@onready var rf_start: Hold = $"Holds/Hold 1"
 @onready var climb_start_position: Node3D = $"Climb Start Position"
 
 

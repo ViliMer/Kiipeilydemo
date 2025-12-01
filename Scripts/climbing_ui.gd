@@ -52,7 +52,6 @@ func _connect_ui() -> void:
 	)
 
 	left_hand_options.item_selected.connect(func(value: int):
-		print(value)
 		SignalBus.left_hand_target_changed.emit(value)
 	)
 
