@@ -262,7 +262,7 @@ func _remove_limb_locks() -> void:
 		physical_bone.axis_lock_angular_y = false
 
 
-func update_climbing(delta: float) -> void:
+func update_climbing(_delta: float) -> void:
 	if character.bone_sim == null:
 		return
 
