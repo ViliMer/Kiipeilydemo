@@ -311,7 +311,7 @@ func update_climbing(delta: float) -> void:
 		_apply_force(hip_bone, direction, right_foot_force)
 	
 	reach()
-	grab_hold()
+	try_grab()
 
 func reach() -> void:
 	var hand_reach_force = 100.0
@@ -337,39 +337,52 @@ func reach() -> void:
 		var dir = (right_foot_target.global_position - right_foot.global_position)
 		_apply_force(right_foot, dir, foot_reach_force)
 
-func grab_hold() -> void:
+func try_grab() -> void:
 	var threshold_distance = 0.1
 	
 	# LEFT HAND
 	if reaching_left_hand and not attached_holds["lh"]:
 		var dist = get_bone_world_pos("LeftHand").distance_to(left_hand_target.global_position)
 		if dist <= threshold_distance:
-			limb_grab("lh")
+			grab_hold("lh")
 
 	# RIGHT HAND
 	if reaching_right_hand and not attached_holds["rh"]:
 		var dist = get_bone_world_pos("RightHand").distance_to(right_hand_target.global_position)
 		if dist <= threshold_distance:
-			limb_grab("rh")
+			grab_hold("rh")
 
 	# LEFT FOOT
 	if reaching_left_foot and not attached_holds["lf"]:
 		var dist = get_bone_world_pos("LeftFoot").distance_to(left_foot_target.global_position)
 		if dist <= threshold_distance:
-			limb_grab("lf")
+			grab_hold("lf")
 
 	# RIGHT FOOT
 	if reaching_right_foot and not attached_holds["rf"]:
 		var dist = get_bone_world_pos("RightFoot").distance_to(right_foot_target.global_position)
 		if dist <= threshold_distance:
-			limb_grab("rf")
+			grab_hold("rf")
 
 
-func limb_grab(code: String) -> void:
+func grab_hold(code: String) -> void:
 	print("Grab")
 	character.run_bone_sim(false)
 	copy_physical_to_skeleton()
-	character.left_hand_ik.start(true)
+	
+	match code:
+		"lh":	
+			character.left_hand_ik.start(true)
+		"rh":
+			character.right_hand_ik.start(true)
+		"lf":
+			character.left_foot_ik.start(true)
+		"rf":
+			character.right_foot_ik.start(true)
+		_:
+			push_error("Error in limb_grab(): unknown code '%s'" % code)
+			return
+	
 	_add_limb_lock(code)
 	attached_holds[code] = target_holds[code]
 	character.run_bone_sim(true)
