@@ -145,3 +145,16 @@ func _on_start_route(route: Route) -> void:
 		right_hand_options.add_item(hold.hold_name)
 		left_leg_options.add_item(hold.hold_name)
 		right_leg_options.add_item(hold.hold_name)
+	
+	var start = route.get_starting_holds()
+	
+	left_hand_options.select(find_item_index_by_text(left_hand_options, start["lh"].hold_name))
+	right_hand_options.select(find_item_index_by_text(right_hand_options, start["rh"].hold_name))
+	left_leg_options.select(find_item_index_by_text(left_leg_options, start["lf"].hold_name))
+	right_leg_options.select(find_item_index_by_text(right_leg_options, start["rf"].hold_name))
+
+func find_item_index_by_text(option_button: OptionButton, text: String) -> int:
+	for i in range(option_button.item_count):
+		if option_button.get_item_text(i) == text:
+			return i
+	return -1  # not found
