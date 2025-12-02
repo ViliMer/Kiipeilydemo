@@ -83,45 +83,31 @@ func enter_climb(new_route: Route):
 func update_climbing(_delta: float) -> void:
 	# Get physical bones
 	var hip_bone = character.bone_sim.find_child("Physical Bone Hips")
-	var chest_bone = character.bone_sim.find_child("Physical Bone Chest")
-	var left_shoulder_bone = character.bone_sim.find_child("Physical Bone LeftShoulder")
-	var right_shoulder_bone = character.bone_sim.find_child("Physical Bone RightUpperArm")
+	var upper_chest_bone = character.bone_sim.find_child("Physical Bone UpperChest")
 
 	# HANDS
 	if attached_holds["lh"]:
 		var target = attached_holds["lh"].global_position
-		var body_pos = left_shoulder_bone.global_position
+		var body_pos = get_bone_world_pos("UpperChest")
 		var direction = (target - body_pos).normalized()
-		apply_force(left_shoulder_bone, direction, left_hand_force)
-		
-		#Torque tau = F*r <=> F = tau/r
-		#var torque = 100
-		#var torque_force = torque / (target - body_pos).length()
-		#var forward = character.wall.find_child("Wall upper half").global_transform.basis * Vector3(0, 0, -1)
-		#apply_force(left_shoulder_bone, -forward, torque_force)
+		apply_force(upper_chest_bone, direction, left_hand_force)
 	
 	if attached_holds["rh"]:
 		var target = attached_holds["rh"].global_position
-		var body_pos = chest_bone.global_position
+		var body_pos = get_bone_world_pos("UpperChest")
 		var direction = (target - body_pos).normalized()
-		apply_force(right_shoulder_bone, direction, right_hand_force)
-		
-		#Torque tau = F*r <=> F = tau/r
-		#var torque = 100
-		#var torque_force = torque / (target - body_pos).length()
-		#var forward = character.wall.find_child("Wall upper half").global_transform.basis * Vector3(0, 0, -1)
-		#apply_force(right_shoulder_bone, -forward, torque_force)
+		apply_force(upper_chest_bone, direction, right_hand_force)
 	
 	# FEET
 	if attached_holds["lf"]:
 		var target = attached_holds["lf"].global_position
-		var body_pos = hip_bone.global_position
+		var body_pos = get_bone_world_pos("Hips")
 		var direction = (body_pos - target).normalized()
 		apply_force(hip_bone, direction, left_foot_force)
 
 	if attached_holds["rf"]:
 		var target = attached_holds["rf"].global_position
-		var body_pos = hip_bone.global_position
+		var body_pos = get_bone_world_pos("Hips")
 		var direction = (body_pos - target).normalized()
 		apply_force(hip_bone, direction, right_foot_force)
 	
@@ -258,22 +244,22 @@ func reach() -> void:
 	
 	if reaching_left_hand and not attached_holds["lh"]:
 		var left_hand = character.bone_sim.find_child("Physical Bone LeftHand")
-		var dir = (left_hand_target.global_position - left_hand.global_position)
+		var dir = (left_hand_target.global_position - get_bone_world_pos("LeftHand"))
 		apply_force(left_hand, dir, hand_reach_force)
 	
 	if reaching_right_hand and not attached_holds["rh"]:
 		var right_hand = character.bone_sim.find_child("Physical Bone RightHand")
-		var dir = (right_hand_target.global_position - right_hand.global_position)
+		var dir = (right_hand_target.global_position - get_bone_world_pos("RightHand"))
 		apply_force(right_hand, dir, hand_reach_force)
 	
 	if reaching_left_foot and not attached_holds["lf"]:
 		var left_foot = character.bone_sim.find_child("Physical Bone LeftFoot")
-		var dir = (left_foot_target.global_position - left_foot.global_position)
+		var dir = (left_foot_target.global_position - get_bone_world_pos("LeftFoot"))
 		apply_force(left_foot, dir, foot_reach_force)
 	
 	if reaching_right_foot and not attached_holds["rf"]:
 		var right_foot = character.bone_sim.find_child("Physical Bone RightFoot")
-		var dir = (right_foot_target.global_position - right_foot.global_position)
+		var dir = (right_foot_target.global_position - get_bone_world_pos("RightFoot"))
 		apply_force(right_foot, dir, foot_reach_force)
 
 func try_grab() -> void:
