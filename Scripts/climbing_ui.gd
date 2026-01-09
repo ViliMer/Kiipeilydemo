@@ -28,15 +28,19 @@ extends Control
 @onready var reach_right_leg: Button = $"MarginContainer/GridContainer/Right Leg Container/Reach Right Leg"
 @onready var right_leg_options: OptionButton = $"MarginContainer/GridContainer/Right Leg Container/Right Leg Options"
 
+#Other
+@onready var save_pose: Button = $"MarginContainer/GridContainer/Left Leg Container/Save pose"
+@onready var reach_pose: Button = $"MarginContainer/GridContainer/Right Leg Container/Reach Pose"
+
 func _ready() -> void:
 	_connect_ui()
 	
 	SignalBus.start_route.connect(_on_start_route)
 	
-	left_hand_strength_slider.value = 50
-	right_hand_strength_slider.value = 50
-	left_leg_strength_slider.value = 50
-	right_leg_strength_slider.value = 50
+	left_hand_strength_slider.value = 0.0
+	right_hand_strength_slider.value = 0.0
+	left_leg_strength_slider.value = 0.0
+	right_leg_strength_slider.value = 0.0
 
 func _connect_ui() -> void:
 	# LEFT HAND
@@ -101,6 +105,12 @@ func _connect_ui() -> void:
 	right_leg_options.item_selected.connect(func(value: int):
 		SignalBus.right_foot_target_changed.emit(value)
 	)
+	
+	# OTHER
+	save_pose.pressed.connect(func():
+		SignalBus.save_pose.emit())
+	reach_pose.pressed.connect(func():
+		SignalBus.reach_pose.emit())
 
 func _on_left_hand_slider_changed(value: float) -> void:
 	left_hand_strength_edit.text = str(value)

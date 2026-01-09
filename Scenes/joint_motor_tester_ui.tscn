@@ -1,0 +1,258 @@
+[gd_scene load_steps=2 format=3 uid="uid://c8gl12gcitj16"]
+
+[ext_resource type="Script" uid="uid://cxh42eeour4jj" path="res://Scripts/joint_motor_tester.gd" id="1_by8la"]
+
+[node name="joint_motor_tester_ui" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_by8la")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+focus_behavior_recursive = 1
+theme_override_constants/margin_left = 50
+theme_override_constants/margin_top = 50
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="Disable Motors" type="Button" parent="MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+toggle_mode = true
+button_pressed = true
+text = "Disable Motors"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="Drive Torque Motors To Pose" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+toggle_mode = true
+text = "Drive to saved pose
+with torque motors"
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Apply Torque" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+toggle_mode = true
+text = "Apply Torque:"
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+text = "Magnitude:"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+
+[node name="TorqueMagnitudeSlider" type="HSlider" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+tick_count = 20
+ticks_on_borders = true
+
+[node name="TorqueMagLineEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer"]
+layout_mode = 2
+text = "0"
+editable = false
+
+[node name="Label2" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+text = "x:"
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+
+[node name="TorqueXSlider" type="HSlider" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer2"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1.0
+max_value = 1.0
+step = 0.1
+tick_count = 20
+ticks_on_borders = true
+
+[node name="TorqueXLineEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer2"]
+layout_mode = 2
+text = "0"
+editable = false
+
+[node name="Label3" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+text = "y:"
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+
+[node name="TorqueYslider" type="HSlider" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer3"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1.0
+max_value = 1.0
+step = 0.1
+tick_count = 20
+ticks_on_borders = true
+
+[node name="TorqueYLineEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer3"]
+layout_mode = 2
+text = "0"
+editable = false
+
+[node name="Label4" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+text = "z:"
+
+[node name="HBoxContainer4" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2"]
+layout_mode = 2
+
+[node name="TorqueZSlider" type="HSlider" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer4"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1.0
+max_value = 1.0
+step = 0.1
+tick_count = 20
+ticks_on_borders = true
+
+[node name="TorqueZLineEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer4"]
+layout_mode = 2
+text = "0"
+editable = false
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="Drive Velocity Motors To Pose" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2"]
+layout_mode = 2
+toggle_mode = true
+text = "Drive to saved pose
+with velocity motors"
+
+[node name="VBoxContainer3" type="VBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2"]
+layout_mode = 2
+
+[node name="Apply Velocity" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+toggle_mode = true
+text = "Apply Velocity:"
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+text = "Magnitude:"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+
+[node name="VelocityMagnitudeSlider" type="HSlider" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 10.0
+step = 0.1
+tick_count = 20
+ticks_on_borders = true
+
+[node name="VelocityMagLineEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer"]
+layout_mode = 2
+text = "0"
+editable = false
+
+[node name="Label2" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+text = "x:"
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+
+[node name="VelocityXSlider" type="HSlider" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer2"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1.0
+max_value = 1.0
+step = 0.1
+tick_count = 20
+ticks_on_borders = true
+
+[node name="VelocityXLineEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer2"]
+layout_mode = 2
+text = "0"
+editable = false
+
+[node name="Label3" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+text = "y:"
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+
+[node name="VelocityYslider" type="HSlider" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer3"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1.0
+max_value = 1.0
+step = 0.1
+tick_count = 20
+ticks_on_borders = true
+
+[node name="VelocityYLineEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer3"]
+layout_mode = 2
+text = "0"
+editable = false
+
+[node name="Label4" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+text = "z:"
+
+[node name="HBoxContainer4" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3"]
+layout_mode = 2
+
+[node name="VelocityZSlider" type="HSlider" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer4"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1.0
+max_value = 1.0
+step = 0.1
+tick_count = 20
+ticks_on_borders = true
+
+[node name="VelocityZLineEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer4"]
+layout_mode = 2
+text = "0"
+editable = false
+
+[connection signal="toggled" from="MarginContainer/VBoxContainer/Disable Motors" to="." method="_on_disable_motors_toggled"]
+[connection signal="toggled" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/Apply Torque" to="." method="_on_apply_torque_toggled"]
+[connection signal="value_changed" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer/TorqueMagnitudeSlider" to="." method="_on_torque_magnitude_slider_value_changed"]
+[connection signal="value_changed" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer2/TorqueXSlider" to="." method="_on_torque_x_slider_value_changed"]
+[connection signal="value_changed" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer3/TorqueYslider" to="." method="_on_torque_yslider_value_changed"]
+[connection signal="value_changed" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer4/TorqueZSlider" to="." method="_on_torque_z_slider_value_changed"]
+[connection signal="toggled" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/Drive Velocity Motors To Pose" to="." method="_on_drive_velocity_motors_to_pose_toggled"]
+[connection signal="toggled" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/Apply Velocity" to="." method="_on_apply_velocity_toggled"]
+[connection signal="value_changed" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer/VelocityMagnitudeSlider" to="." method="_on_velocity_magnitude_slider_value_changed"]
+[connection signal="value_changed" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer2/VelocityXSlider" to="." method="_on_velocity_x_slider_value_changed"]
+[connection signal="value_changed" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer3/VelocityYslider" to="." method="_on_velocity_yslider_value_changed"]
+[connection signal="value_changed" from="MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer2/VBoxContainer3/HBoxContainer4/VelocityZSlider" to="." method="_on_velocity_z_slider_value_changed"]

@@ -42,3 +42,9 @@ signal release_right_foot
 signal reach_right_foot
 @warning_ignore("unused_signal")
 signal right_foot_target_changed(value: int)
+
+# Save pose
+@warning_ignore("unused_signal")
+signal save_pose
+@warning_ignore("unused_signal")
+signal reach_pose

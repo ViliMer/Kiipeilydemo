@@ -4,6 +4,12 @@ extends Node
 var character: CharacterBody3D
 var skeleton: Skeleton3D
 var route: Route
+var joints: Array[Generic6DOFJoint3D]
+
+var saved_joint_angles: Dictionary
+var previous_joint_angles := {}
+var previous_joint_torques := {}
+var run_joint_motors := false
 
 var left_hand_target: Node3D
 var right_hand_target: Node3D
@@ -37,6 +43,7 @@ var target_holds = {
 func init(character_ref: CharacterBody3D) -> void:
 	character = character_ref
 	skeleton = character.skeleton
+	joints = character.get_joints()
 
 	left_hand_target = character.get_node("Left Hand Target")
 	right_hand_target = character.get_node("Right Hand Target")
@@ -80,7 +87,7 @@ func enter_climb(new_route: Route):
 	character.bone_sim.active = true
 	character.run_bone_sim(true)
 
-func update_climbing(_delta: float) -> void:
+func update_climbing(delta: float) -> void:
 	# Get physical bones
 	var hip_bone = character.bone_sim.find_child("Physical Bone Hips")
 	var upper_chest_bone = character.bone_sim.find_child("Physical Bone UpperChest")
@@ -113,6 +120,9 @@ func update_climbing(_delta: float) -> void:
 	
 	reach()
 	try_grab()
+	
+	if run_joint_motors:
+		update_joint_motors(saved_joint_angles, delta)
 
 func exit_climb():
 	attached_holds = {"lh":null, "rh":null, "lf":null, "rf":null}
@@ -378,6 +388,203 @@ func get_bone_world_pos(bone_name: String) -> Vector3:
 	
 	return bone_world.origin
 
+func save_joint_angles() -> Dictionary:
+	var result := {}
+	if joints == null:
+		return result
+
+	for joint in joints:
+		var node_a := joint.get_node_or_null(joint.node_a)
+		var node_b := joint.get_node_or_null(joint.node_b)
+
+		if node_a == null or node_b == null:
+			continue
+		
+		var Ba = node_a.global_transform.basis
+		var Bb = node_b.global_transform.basis
+		var Bj = joint.global_transform.basis
+		
+		var A_in_joint = Bj.inverse() * Ba
+		var B_in_joint = Bj.inverse() * Bb
+		
+		var rel_basis = A_in_joint.inverse() * B_in_joint
+		
+		#var a_basis = node_a.global_transform.basis
+		#var b_basis = node_b.global_transform.basis
+		#var j_basis = joint.global_transform.basis
+
+		#var rel_basis = (j_basis.inverse() * a_basis).inverse() * (j_basis.inverse() * b_basis)
+		var q : Quaternion = rel_basis.get_rotation_quaternion().normalized()
+
+		result[joint.name] = {
+			"qx": q.x,
+			"qy": q.y,
+			"qz": q.z,
+			"qw": q.w
+		}
+
+	saved_joint_angles = result
+	return result
+
+func enable_joint_motors(strength := 1.0) -> void:
+	run_joint_motors = true
+	return
+	if joints == null:
+		return
+
+	var max_force := 10.0 * strength
+
+	for joint in joints:
+
+		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
+		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
+		joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
+		
+		#joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
+		#joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
+		#joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
+
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_force)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_force)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_force)
+
+func disable_joint_motors() -> void:
+	run_joint_motors = false
+	return
+	if joints == null:
+		return
+
+	for joint in joints:
+
+		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
+		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
+		joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
+		
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
+
+var JOINT_LIMITS = {
+	"Spine Joint":			{ "max_torque": 120.0 },
+	"LowerChest Joint":		{ "max_torque": 120.0 },
+	"Chest Joint":			{ "max_torque": 120.0 },
+	"LeftUpperChest Joint":	{ "max_torque": 120.0 },
+	"LeftShoulder Joint":	{ "max_torque": 80.0 },
+	"LeftElbow Joint":		{ "max_torque": 40.0 },
+	"LeftWrist Joint":		{ "max_torque": 15.0 },
+	"RightUpperChest Joint":{ "max_torque": 120.0 },
+	"RightShoulder Joint":	{ "max_torque": 80.0 },
+	"RightElbow Joint":		{ "max_torque": 40.0 },
+	"RightWrist Joint":		{ "max_torque": 15.0 },
+	"LeftHip Joint":		{ "max_torque": 150.0 },
+	"LeftKnee Joint":		{ "max_torque": 120.0 },
+	"LeftAnkle Joint":		{ "max_torque": 50.0 },
+	"RightHip Joint":		{ "max_torque": 150.0 },
+	"RightKnee Joint":		{ "max_torque": 120.0 },
+	"RightAnkle Joint":		{ "max_torque": 50.0 },
+}
+
+func update_joint_motors(saved: Dictionary, delta: float, strength := 1.0) -> void:
+	if joints == null or saved == null:
+		return
+
+	var Kp := 5.0 * strength	# proportional gain
+	var Kd := 0.0 * strength	# derivative gain
+
+	for joint in joints:
+
+		var joint_name = joint.name
+		if not saved.has(joint_name):
+			continue
+
+		# ---- RESOLVE THE TWO BODIES ----
+		var node_a := joint.get_node_or_null(joint.node_a)
+		var node_b := joint.get_node_or_null(joint.node_b)
+		if node_a == null or node_b == null:
+			continue
+		
+		var Ba = node_a.global_transform.basis
+		var Bb = node_b.global_transform.basis
+		var Bj = joint.global_transform.basis
+		
+		var A_in_joint = Bj.inverse() * Ba
+		var B_in_joint = Bj.inverse() * Bb
+		
+		var rel_basis = A_in_joint.inverse() * B_in_joint
+		
+		var q_current : Quaternion = rel_basis.get_rotation_quaternion().normalized()
+		
+		# ---- TARGET QUATERNION ----
+		var s = saved[joint_name]
+		var q_target = Quaternion(s["qx"], s["qy"], s["qz"], s["qw"]).normalized()
+
+		# ---- ROTATION DELTA (shortest path) ----
+		var q_delta : Quaternion = (q_target * q_current.inverse()).normalized()
+		if q_delta.w < 0.0:
+			q_delta = Quaternion(-q_delta.x, -q_delta.y, -q_delta.z, -q_delta.w)
+		
+		var axis = q_delta.get_axis()
+		var angle = q_delta.get_angle()
+		
+		# joint-local angular error vector
+		var error_vec : Vector3 = axis * angle
+		
+		debug_draw_joint_error(joint, error_vec)
+		if joint_name == "RightElbow Joint":
+			print(joint_name, " error angle (deg): ", rad_to_deg(angle))
+		
+		# ---- ANGULAR VELOCITY (derivative term) ----
+		var prev_q : Quaternion = previous_joint_angles.get(joint_name, q_current)
+		var q_vel = (prev_q.inverse() * q_current).normalized()
+		
+		# Ensure shortest-path rotation
+		if q_vel.w < 0.0:
+			q_vel = Quaternion(-q_vel.x, -q_vel.y, -q_vel.z, -q_vel.w)
+
+		var angular_velocity = Vector3.ZERO
+		var vel_angle := q_vel.get_angle()
+		if vel_angle > 0.00001:
+			angular_velocity = q_vel.get_axis() * (vel_angle / delta)
+
+		previous_joint_angles[joint_name] = q_current
+		
+		# ---- PD CONTROL ----
+		var target_torque = (error_vec * Kp) - (angular_velocity * Kd)
+		''' Ignore for nows
+		var max_torque = JOINT_LIMITS[joint_name].max_torque
+		if target_torque.length() > max_torque:
+			target_torque = target_torque.normalized() * max_torque
+		
+		var prev_torque = previous_joint_torques.get(joint_name, Vector3.ZERO)
+		var max_delta = max_torque * 1.0 * delta  # tune per joint
+
+		var delta_torque = target_torque - prev_torque
+		if delta_torque.length() > max_delta:
+			delta_torque = delta_torque.normalized() * max_delta
+
+		target_torque = prev_torque + delta_torque
+		previous_joint_torques[joint_name] = target_torque
+		'''
+		var torque_world = joint.global_transform.basis * target_torque
+		
+		DebugDraw3D.draw_arrow(
+			joint.global_transform.origin,
+			joint.global_transform.origin + torque_world,
+			Color.BLUE,
+			0.01
+		)
+		
+
+		node_b.external_torque -= torque_world
+		#node_a.external_torque += torque_world
+
+func debug_draw_joint_error(joint: Generic6DOFJoint3D, error_joint_local: Vector3) -> void:
+	var origin = joint.global_transform.origin
+	
+	var world_dir = joint.global_transform.basis * error_joint_local
+	
+	DebugDraw3D.draw_arrow(origin, origin + world_dir*2, Color.RED, 0.01)
+
 #### Signal stuff ####
 func connect_signals() -> void:
 	
@@ -404,6 +611,10 @@ func connect_signals() -> void:
 	SignalBus.release_right_foot.connect(_on_release_right_foot)
 	SignalBus.right_foot_target_changed.connect(_on_right_foot_target_changed)
 	SignalBus.reach_right_foot.connect(_on_reach_right_foot)
+	
+	# Other
+	SignalBus.save_pose.connect(_on_save_pose)
+	SignalBus.reach_pose.connect(_on_reach_pose)
 
 func _on_left_hand_strength_changed(value: float) -> void:
 	left_hand_force = value
@@ -465,3 +676,16 @@ func _on_right_foot_target_changed(value: int) -> void:
 	var hold = route.get_holds()[value]
 	target_holds["rf"] = hold
 	right_foot_target.global_transform = hold.get_foot_grab_transform()
+
+func _on_save_pose() -> void:
+	var res = save_joint_angles()
+	print("Button pressed")
+	print(res)
+
+func _on_reach_pose() -> void:
+	if run_joint_motors:
+		print("Disabling motors")
+		disable_joint_motors()
+	else:
+		print("Driving motors to reach target pose")
+		enable_joint_motors()

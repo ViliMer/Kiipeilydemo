@@ -5,7 +5,7 @@ const PhysicalBoneExtension = preload("res://Scripts/physical_bone_extension.gd"
 @export var move_speed: float = 5.0
 @export var jump_force: float = 4.5
 
-enum PlayerState { MOVE, RAGDOLL, CLIMB }
+enum PlayerState { MOVE, RAGDOLL, CLIMB, TEST_JOINT_MOTORS }
 var state: PlayerState = PlayerState.MOVE
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
@@ -38,6 +38,8 @@ var route: Route = null
 
 var dragging: DraggingController
 var camera_controller: CameraController
+var joint_motor_tester: Control
+const JOINT_MOTOR_TESTER_UI = preload("uid://c8gl12gcitj16")
 
 var bone_names = {
 	"Root":				"Physical Bone Root",
@@ -80,6 +82,10 @@ func _ready() -> void:
 	add_child(camera_controller)
 	camera_controller.init(self)
 	
+	joint_motor_tester = JOINT_MOTOR_TESTER_UI.instantiate()
+	get_parent().add_child.call_deferred(joint_motor_tester)
+	joint_motor_tester.init(self)
+	
 	var physical_bones = bone_sim.get_children()
 	for physical_bone in physical_bones:
 		if physical_bone is PhysicalBone3D:
@@ -104,13 +110,25 @@ func _input(event: InputEvent) -> void:
 		enable_ragdoll()
 	if Input.is_action_just_pressed("Idle") and state == PlayerState.RAGDOLL:
 		disable_ragdoll()
+		
+		
+	### These two if statements are for testing joint motors
+	if Input.is_action_just_pressed("Joint Motor Test") and state == PlayerState.MOVE:
+		state = PlayerState.TEST_JOINT_MOTORS
+		camera_controller.enter_free_fly()
+		joint_motor_tester.enable()
+	elif Input.is_action_just_pressed("Joint Motor Test") and state == PlayerState.TEST_JOINT_MOTORS:
+		state = PlayerState.MOVE
+		camera_controller.exit_free_fly()
+		joint_motor_tester.disable()
+		
 	if Input.is_action_just_pressed("Interact") and can_climb:
 		start_climbing()
 		can_climb = false
 	elif Input.is_action_just_pressed("Interact") and state == PlayerState.CLIMB:
 		stop_climbing()
 	
-	if (state == PlayerState.RAGDOLL or state == PlayerState.CLIMB) and event is InputEventMouseButton:
+	if (state == PlayerState.RAGDOLL or state == PlayerState.CLIMB or state == PlayerState.TEST_JOINT_MOTORS) and event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
 				dragging.try_grab()
@@ -125,6 +143,9 @@ func _physics_process(delta: float) -> void:
 			dragging.update_ragdoll(delta)
 		PlayerState.CLIMB:
 			climbing.update_climbing(delta)
+			dragging.update_ragdoll(delta)
+		PlayerState.TEST_JOINT_MOTORS:
+			joint_motor_tester.update_motor_test(delta)
 			dragging.update_ragdoll(delta)
 
 func _update_movement(delta: float) -> void:
@@ -251,3 +272,22 @@ func run_bone_sim(run: bool, include: Array[StringName] = []) -> void:
 		return
 	
 	bone_sim.physical_bones_start_simulation(include)
+
+func get_joints() -> Array[Generic6DOFJoint3D]:
+	var joints: Array[Generic6DOFJoint3D] = []
+
+	if bone_sim == null:
+		push_warning("get_joints(): bone_sim is null")
+		return joints
+
+	# Iterate through all physical bones managed by the simulator
+	for bone in bone_sim.get_children():
+		if not bone is PhysicalBone3D:
+			continue
+
+		# Now inspect children of each PhysicalBone3D
+		for child in bone.get_children():
+			if child is Generic6DOFJoint3D:
+				joints.append(child)
+
+	return joints
