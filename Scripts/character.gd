@@ -9,6 +9,8 @@ enum PlayerState { MOVE, RAGDOLL, CLIMB, TEST_JOINT_MOTORS }
 var state: PlayerState = PlayerState.MOVE
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+var g_dir = ProjectSettings.get_setting("physics/3d/default_gravity_vector").normalized()
+var gravity_vector = g_dir * gravity
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var camera_node: Camera3D = $CameraPivot/Camera3D
@@ -63,6 +65,44 @@ var bone_names = {
 	"RightLowerLeg":	"Physical Bone RightLowerLeg",
 	"RightFoot":		"Physical Bone RightFoot",
 }
+
+# PhysicalBone parent -> child relationships
+var bone_structure = {
+	"Physical Bone Root":			["Physical Bone Hips"],
+	"Physical Bone Hips":			["Physical Bone Spine", "Physical Bone LeftUpperLeg", "Physical Bone RightUpperLeg"],
+	"Physical Bone Spine":			["Physical Bone Chest"],
+	"Physical Bone Chest":			["Physical Bone UpperChest"],
+	"Physical Bone UpperChest":		["Physical Bone Neck", "Physical Bone LeftShoulder", "Physical Bone RightShoulder"],
+	"Physical Bone Neck":			[],
+	"Physical Bone LeftShoulder":	["Physical Bone LeftUpperArm"],
+	"Physical Bone LeftUpperArm":	["Physical Bone LeftLowerArm"],
+	"Physical Bone LeftLowerArm":	["Physical Bone LeftHand"],
+	"Physical Bone LeftHand":		[],
+	"Physical Bone RightShoulder":	["Physical Bone RightUpperArm"],
+	"Physical Bone RightUpperArm":	["Physical Bone RightLowerArm"],
+	"Physical Bone RightLowerArm":	["Physical Bone RightHand"],
+	"Physical Bone RightHand":		[],
+	"Physical Bone LeftUpperLeg":	["Physical Bone LeftLowerLeg"],
+	"Physical Bone LeftLowerLeg":	["Physical Bone LeftFoot"],
+	"Physical Bone LeftFoot":		[],
+	"Physical Bone RightUpperLeg":	["Physical Bone RightLowerLeg"],
+	"Physical Bone RightLowerLeg":	["Physical Bone RightFoot"],
+	"Physical Bone RightFoot":		[]
+}
+
+var cached_descendant_bones = {} # Cache a list of children for all parent bones
+
+func get_all_descendants(bone_name: String, children_map: Dictionary, descendants := []) -> Array:
+	if children_map[bone_name].is_empty():
+		# Reached leaf bone
+		return descendants
+
+	for child_name in children_map[bone_name]:
+		descendants.append(child_name)
+		get_all_descendants(child_name, children_map, descendants)
+
+	return descendants
+
 var bone_rotation_offsets = {} #Store offsets that allow transformation between physical bones and bones
 
 func _ready() -> void:
@@ -100,6 +140,9 @@ func _ready() -> void:
 		var bone_rot = bone_transform.basis.get_euler()
 
 		print("Bone:", bone_name, " | Global Position:", bone_pos, " | Global Rotation: ", rad_to_deg(bone_rot.x), ", ", rad_to_deg(bone_rot.y), ", ", rad_to_deg(bone_rot.z))
+	
+	for physical_bone_name in bone_structure.keys():
+		cached_descendant_bones[physical_bone_name] = get_all_descendants(physical_bone_name, bone_structure)
 
 
 func _input(event: InputEvent) -> void:
@@ -291,3 +334,42 @@ func get_joints() -> Array[Generic6DOFJoint3D]:
 				joints.append(child)
 
 	return joints
+
+func get_physical_bone_from_joint(joint_name: String) -> PhysicalBone3D:
+	var joint: Generic6DOFJoint3D = bone_sim.find_child(joint_name)
+	return joint.get_parent()
+
+
+# These gravity torque functions could be optimized if they didn't have to use find_child, and instead have a dictionary or something that maps them 1 to 1.
+func compute_gravity_torque_for_joint(joint_name: String, downstream_bones: Array) -> Vector3:
+	var joint: Generic6DOFJoint3D = bone_sim.find_child(joint_name)
+	var bone = get_physical_bone_from_joint(joint_name)
+	
+	var pivot = joint.global_transform.origin
+	var total_torque := Vector3.ZERO
+
+	# Self
+	var com = bone.get_center_of_mass_world()
+	var r = com - pivot
+	total_torque += r.cross(bone.mass * gravity_vector)
+
+	# Downstream bones
+	for child in downstream_bones:
+		var b: PhysicalBone3D = bone_sim.find_child(child)
+		var com_child = b.get_center_of_mass_world()
+		var r_child = com_child - pivot
+		total_torque += r_child.cross(b.mass * gravity_vector)
+
+	# Compensation = negative of gravity torque
+	return -total_torque
+
+func compute_gravity_compensation_for_joints(joints: Array) -> Dictionary:
+	var result := {}
+
+	for joint_name in joints:
+		var bone = get_physical_bone_from_joint(joint_name)
+		var downstream = cached_descendant_bones[bone.name]
+		var torque := compute_gravity_torque_for_joint(joint_name, downstream)
+		result[joint_name] = torque
+
+	return result

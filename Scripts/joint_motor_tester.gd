@@ -2,13 +2,6 @@ extends Control
 
 enum JointMotorTesterState { DISABLED, APPLY_TORQUE, APPLY_VELOCITY, DRIVE_TORQUE_MOTORS_TO_POSE, DRIVE_VELOCITY_MOTORS_TO_POSE }
 var state = JointMotorTesterState.DISABLED
-# Apply this state machine, so that buttons make sense. Get rid of many bools. Then test velocity motors.
-# Did this. Flipped velocity motor direction and seems to work. Investigate why rotation is according to left hand rule (I thought it should be according to right hand rule)
-# For some reason it just seems that the velocity motor operates according to the left hand rule.
-# There is some weirdness with the velocity motors. Even rotating arount the other axes (that I don't think should produce a rotation) still produce a rotation. Torque motor does not seem to do this.
-# The rotation around other axes seem to have some angle that they are converging towards.
-# X and Z axes form a plane where the joint is free to rotate. The velocity vector seems to try to bend to the same direction always, whether changing x or z.
-# I don't observe the same problem in T pose
 
 @onready var torque_mag_line_edit: LineEdit = $MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer/TorqueMagLineEdit
 @onready var torque_x_line_edit: LineEdit = $MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/VBoxContainer2/HBoxContainer2/TorqueXLineEdit
@@ -61,9 +54,9 @@ var velocity_to_be_applied = Vector3(0,0,0)
 var velocity_multiplier = 0.0
 
 ##### CONFIGURATION #####
-var bones_to_simulate: Array[StringName] = ["Spine"]
-var free_joints: Array[String] = ["Spine Joint", "LowerChest Joint", "Chest Joint"] #["LeftKnee Joint", "LeftAnkle Joint"]
-var joints_to_disable: Array[String] = ["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint", "RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"]#["RightWrist Joint"]
+var bones_to_simulate: Array[StringName] = ["LeftUpperLeg"]
+var free_joints: Array[String] = ["LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"] #["Spine Joint", "LowerChest Joint", "Chest Joint"] "LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"
+var joints_to_disable: Array[String] = []#["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint", "RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"]#["RightWrist Joint"]
 
 func init(c: CharacterBody3D):
 	character = c
@@ -306,7 +299,7 @@ var JOINT_CONSTANTS = {
 	"RightShoulder Joint":	{ "max_torque": 80.0, "gain_multiplier": 0.0 },
 	"RightElbow Joint":		{ "max_torque": 40.0, "gain_multiplier": 0.0 },
 	"RightWrist Joint":		{ "max_torque": 15.0, "gain_multiplier": 0.0 },
-	"LeftHip Joint":		{ "max_torque": 150.0 },
+	"LeftHip Joint":		{ "max_torque": 150.0, "gain_multiplier": 15.0 },
 	"LeftKnee Joint":		{ "max_torque": 120.0, "gain_multiplier": 10.0 },
 	"LeftAnkle Joint":		{ "max_torque": 50.0, "gain_multiplier": 1.0 },
 	"RightHip Joint":		{ "max_torque": 150.0 },
@@ -314,14 +307,11 @@ var JOINT_CONSTANTS = {
 	"RightAnkle Joint":		{ "max_torque": 50.0 },
 }
 
-func update_torque_motors(saved: Dictionary, delta: float, strength := 1.0) -> void:
+func update_torque_motors(saved: Dictionary, delta: float) -> void:
 	if joints == null or saved == null:
 		return
-
-	# Pretty good values for knee joint
-	#var Kp := 5.0 * strength	# proportional gain
-	#var Kd := 2.0 * strength	# derivative gain
-	#var Ki := 10.0 * strength	# integral gain
+	
+	var gravity_compensations = character.compute_gravity_compensation_for_joints(free_joints)
 
 	for joint in joints:
 		var joint_name = joint.name
@@ -330,18 +320,21 @@ func update_torque_motors(saved: Dictionary, delta: float, strength := 1.0) -> v
 		
 		
 		var gain_multiplier = JOINT_CONSTANTS[joint_name].gain_multiplier
-		# Ankle values
-		var Kp: float = 1.5 * gain_multiplier	# proportional gain
-		var Kd: float = 0.2 * gain_multiplier	# derivative gain
-		var Ki: float = 0.1 * gain_multiplier	# integral gain
+		
+		var Kp: float = 0.5 * gain_multiplier	# proportional gain
+		var Kd: float = 0.1 * gain_multiplier	# derivative gain
+		#var Ki: float = 0.0 * gain_multiplier	# integral gain
 
 		var res = get_PID_data(joint, delta)
 		var error_vec = res["error_vec"]
 		var angular_velocity = res["angular_velocity"]
-		var error_integral = res["error_integral"]
+		#var error_integral = res["error_integral"]
 		
 		# ---- PD CONTROL ----
-		var target_torque = (error_vec * Kp) + (error_integral * Ki) - (angular_velocity * Kd)
+		var gravity_compensation: Vector3 = gravity_compensations[joint_name]
+		var gravity_comp_local = joint.global_transform.basis.inverse() * gravity_compensation
+		var target_torque = (error_vec * Kp) - (angular_velocity * Kd) + gravity_comp_local
+		#var target_torque = (error_vec * Kp) + (error_integral * Ki) - (angular_velocity * Kd)
 		
 		# Cap torque
 		var max_torque = JOINT_CONSTANTS[joint_name].max_torque
@@ -350,7 +343,7 @@ func update_torque_motors(saved: Dictionary, delta: float, strength := 1.0) -> v
 		
 		# Cap change in torque
 		var prev_torque = previous_joint_torques.get(joint_name, Vector3.ZERO)
-		var max_delta = max_torque * 1 * delta  # tune per joint
+		var max_delta = max_torque * 0.1 * delta  # tune per joint
 		var delta_torque = target_torque - prev_torque
 		if delta_torque.length() > max_delta:
 			delta_torque = delta_torque.normalized() * max_delta
@@ -364,16 +357,13 @@ func update_torque_motors(saved: Dictionary, delta: float, strength := 1.0) -> v
 		#DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Bj.y, Color.GREEN, 0.01)
 		#DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Bj.z, Color.YELLOW, 0.01)
 		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + joint.global_transform.basis * error_vec, Color.YELLOW, 0.01)
-		DebugDraw3D.draw_arrow(
-			joint.global_transform.origin,
-			joint.global_transform.origin + torque_world,
-			Color.BLUE,
-			0.01
-		)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + joint.global_transform.basis * gravity_comp_local, Color.RED, 0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + torque_world, Color.BLUE, 0.01)
 		var node_a = joint.get_node_or_null(joint.node_a)
 		var node_b = joint.get_node_or_null(joint.node_b)
 		node_a.external_torque -= torque_world
 		node_b.external_torque += torque_world
+
 
 func update_velocity_motors(saved: Dictionary, delta: float, strength := 1.0) -> void:
 	if joints == null or saved == null:
