@@ -137,12 +137,8 @@ func save_joint_angles(joint_names: Array[String]) -> Dictionary:
 		
 		var Ba = node_a.global_transform.basis
 		var Bb = node_b.global_transform.basis
-		var Bj = joint.global_transform.basis
 		
-		var A_in_joint = Bj.inverse() * Ba
-		var B_in_joint = Bj.inverse() * Bb
-		
-		var rel_basis = B_in_joint * A_in_joint.inverse()
+		var rel_basis = Ba.inverse() * Bb
 
 		var q : Quaternion = rel_basis.get_rotation_quaternion().normalized()
 
@@ -206,14 +202,9 @@ func get_PID_data(joint: Generic6DOFJoint3D, delta: float) -> Dictionary:
 	# ---- BASES ----
 	var Ba: Basis = node_a.global_transform.basis
 	var Bb: Basis = node_b.global_transform.basis
-	var Bj: Basis = joint.global_transform.basis
 
-	# ---- TRANSFORMS INTO JOINT SPACE ----
-	var A_in_joint: Basis = Bj.inverse() * Ba
-	var B_in_joint: Basis = Bj.inverse() * Bb
-
-	# ---- RELATIVE ROTATION (A → B, joint-local) ----
-	var rel_basis: Basis = B_in_joint * A_in_joint.inverse()
+	# ---- RELATIVE ROTATION ----
+	var rel_basis: Basis = Ba.inverse() * Bb
 	var q_current: Quaternion = rel_basis.get_rotation_quaternion().normalized()
 
 	# ---- TARGET QUATERNION (joint-local) ----
@@ -318,7 +309,9 @@ func update_torque_motors(saved: Dictionary, delta: float) -> void:
 		if not saved.has(joint_name):
 			continue
 		
-		
+		var node_a = joint.get_node_or_null(joint.node_a)
+		var node_b = joint.get_node_or_null(joint.node_b)
+		var Ba: Basis = node_a.global_transform.basis
 		var gain_multiplier = JOINT_CONSTANTS[joint_name].gain_multiplier
 		
 		var Kp: float = 0.5 * gain_multiplier	# proportional gain
@@ -332,8 +325,9 @@ func update_torque_motors(saved: Dictionary, delta: float) -> void:
 		
 		# ---- PD CONTROL ----
 		var gravity_compensation: Vector3 = gravity_compensations[joint_name]
-		var gravity_comp_local = joint.global_transform.basis.inverse() * gravity_compensation
+		var gravity_comp_local = Ba.inverse() * gravity_compensation
 		var target_torque = (error_vec * Kp) - (angular_velocity * Kd) + gravity_comp_local
+		var temp_torque = (error_vec * Kp) - (angular_velocity * Kd)
 		#var target_torque = (error_vec * Kp) + (error_integral * Ki) - (angular_velocity * Kd)
 		
 		# Cap torque
@@ -351,16 +345,15 @@ func update_torque_motors(saved: Dictionary, delta: float) -> void:
 		target_torque = prev_torque + delta_torque
 		previous_joint_torques[joint_name] = target_torque
 
-		var torque_world = joint.global_transform.basis * target_torque
+		var torque_world = Ba * target_torque
 		#var Bj: Basis = joint.global_transform.basis
 		#DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Bj.x, Color.RED, 0.01)
 		#DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Bj.y, Color.GREEN, 0.01)
 		#DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Bj.z, Color.YELLOW, 0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + joint.global_transform.basis * error_vec, Color.YELLOW, 0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + joint.global_transform.basis * gravity_comp_local, Color.RED, 0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + torque_world, Color.BLUE, 0.01)
-		var node_a = joint.get_node_or_null(joint.node_a)
-		var node_b = joint.get_node_or_null(joint.node_b)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Ba * error_vec, Color.YELLOW, 0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Ba * gravity_comp_local, Color.RED, 0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Ba * temp_torque, Color.BLUE, 0.01)
+		
 		node_a.external_torque -= torque_world
 		node_b.external_torque += torque_world
 
