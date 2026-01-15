@@ -42,7 +42,6 @@ var joints: Array[Generic6DOFJoint3D]
 
 var saved_joint_angles: Dictionary
 var previous_joint_angles := {}
-var previous_joint_torques := {}
 var joint_error_integrals := {}
 
 var stored_nodes: Dictionary = {}
@@ -129,16 +128,18 @@ func save_joint_angles(joint_names: Array[String]) -> Dictionary:
 	for joint in joints:
 		if joint.name not in joint_names:
 			continue
-		var node_a := joint.get_node_or_null(joint.node_a)
-		var node_b := joint.get_node_or_null(joint.node_b)
+		var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
+		var node_b: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
 
 		if node_a == null or node_b == null:
 			continue
 		
-		var Ba = node_a.global_transform.basis
-		var Bb = node_b.global_transform.basis
+		var B_joint: Basis = joint.basis
+		var Ba: Basis = node_a.global_basis
+		var Bb: Basis = node_b.global_basis
 		
-		var rel_basis = Ba.inverse() * Bb
+		# In fixed joint space:
+		var rel_basis = B_joint.inverse() * (Ba.inverse() * Bb) * B_joint
 
 		var q : Quaternion = rel_basis.get_rotation_quaternion().normalized()
 
@@ -185,26 +186,22 @@ func apply_velocity(velocity: Vector3, joint_names: Array[String]) -> void:
 			0.01
 		)
 
-func get_PID_data(joint: Generic6DOFJoint3D, delta: float) -> Dictionary:
-	# Returns:
-	# {
-	#	"error_vec": Vector3,			# joint-local
-	#	"angular_velocity": Vector3,	# joint-local
-	#	"error_integral": Vector3		# joint-local
-	# }
-	
-	var node_a = joint.get_node_or_null(joint.node_a)
-	var node_b = joint.get_node_or_null(joint.node_b)
+# This function returns P and D in world space
+func get_PD_data(joint: Generic6DOFJoint3D) -> Dictionary:
+
+	var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
+	var node_b: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
 	if node_a == null or node_b == null:
 		push_warning("Joint '%s' has missing nodes." % joint.name)
 		return {"error_vec": Vector3.ZERO,"angular_velocity": Vector3.ZERO, "error_integral": Vector3.ZERO}
 
 	# ---- BASES ----
-	var Ba: Basis = node_a.global_transform.basis
-	var Bb: Basis = node_b.global_transform.basis
+	var B_joint: Basis = joint.basis
+	var Ba: Basis = node_a.global_basis
+	var Bb: Basis = node_b.global_basis
 
-	# ---- RELATIVE ROTATION ----
-	var rel_basis: Basis = Ba.inverse() * Bb
+	# ---- RELATIVE ROTATION IN JOINT SPACE ----
+	var rel_basis = B_joint.inverse() * (Ba.inverse() * Bb) * B_joint
 	var q_current: Quaternion = rel_basis.get_rotation_quaternion().normalized()
 
 	# ---- TARGET QUATERNION (joint-local) ----
@@ -227,38 +224,20 @@ func get_PID_data(joint: Generic6DOFJoint3D, delta: float) -> Dictionary:
 	if v_len > 1e-6:
 		var error_angle := 2.0 * atan2(v_len, q_delta.w)
 		error_vec = (v / v_len) * error_angle
-
-	#var error_vec: Vector3 = q_delta.get_axis().normalized() * q_delta.get_angle()
+		error_vec = joint.global_transform.basis * error_vec
 
 	# ---- ANGULAR VELOCITY (DERIVATIVE TERM) ----
-	var prev_q: Quaternion = previous_joint_angles.get(joint.name, q_current)
-	
-	if q_current.dot(prev_q) < 0.0:
-		prev_q = -prev_q
-	
-	var q_vel: Quaternion = (q_current * prev_q.inverse()).normalized()
-	if q_vel.w < 0.0:
-		q_vel = -q_vel
+	var w_a = node_a.angular_velocity
+	var w_b = node_b.angular_velocity
+	var angular_velocity = w_b - w_a
 
-	var angular_velocity := Vector3.ZERO
-	
-	var v_vel := Vector3(q_vel.x, q_vel.y, q_vel.z)
-	var v_vel_len := v_vel.length()
-	var vel_angle := 2.0 * atan2(v_vel_len, q_vel.w)
-	if v_vel_len > 1e-6:
-		angular_velocity = (v_vel / v_vel_len) * (vel_angle / delta)
-	
-	'''# Debugging
-	if angular_velocity.length() > 0.4:
-		print("High angluar velocity")
-		print("Angular velocity: " + str(angular_velocity.length()))
-		#print(angular_velocity)
-		#print("Axis length: " + str(q_vel.get_axis().normalized().length()))
-		print("v_vel: " + str(v_vel))
-		print("v_vel_len: " + str(v_vel_len))
-	print("angle: " + str(vel_angle))'''
-	
-	# ---- INTEGRAL TERM ----
+	# Returns in world space
+	return {
+		"error_vec": error_vec,
+		"angular_velocity": angular_velocity,
+	}
+''' Saving this if I need it:
+# ---- INTEGRAL TERM ----
 	var error_integral: Vector3 = joint_error_integrals.get(joint.name, Vector3.ZERO)
 	error_integral += error_vec * delta
 
@@ -268,15 +247,7 @@ func get_PID_data(joint: Generic6DOFJoint3D, delta: float) -> Dictionary:
 		error_integral = error_integral.normalized() * max_integral
 
 	joint_error_integrals[joint.name] = error_integral
-
-	# ---- STORE FOR NEXT FRAME ----
-	previous_joint_angles[joint.name] = q_current
-
-	return {
-		"error_vec": error_vec,
-		"angular_velocity": angular_velocity,
-		"error_integral": error_integral
-	}
+'''
 
 var JOINT_CONSTANTS = {
 	"Spine Joint":			{ "max_torque": 120.0, "gain_multiplier": 20.0 },
@@ -290,15 +261,15 @@ var JOINT_CONSTANTS = {
 	"RightShoulder Joint":	{ "max_torque": 80.0, "gain_multiplier": 0.0 },
 	"RightElbow Joint":		{ "max_torque": 40.0, "gain_multiplier": 0.0 },
 	"RightWrist Joint":		{ "max_torque": 15.0, "gain_multiplier": 0.0 },
-	"LeftHip Joint":		{ "max_torque": 150.0, "gain_multiplier": 15.0 },
-	"LeftKnee Joint":		{ "max_torque": 120.0, "gain_multiplier": 10.0 },
-	"LeftAnkle Joint":		{ "max_torque": 50.0, "gain_multiplier": 1.0 },
+	"LeftHip Joint":		{ "max_torque": 150.0, "Kp": 5.0, "Kd_x": 3.0, "Kd_y": 1.0, "Kd_z": 3.0 }, # Here y is the twist axis
+	"LeftKnee Joint":		{ "max_torque": 120.0, "Kp": 4.0, "Kd_x": 1.0, "Kd_y": 1.0, "Kd_z": 1.0 },
+	"LeftAnkle Joint":		{ "max_torque": 50.0, "Kp": 0.5, "Kd_x": 0.1, "Kd_y": 0.1, "Kd_z": 0.1 },
 	"RightHip Joint":		{ "max_torque": 150.0 },
 	"RightKnee Joint":		{ "max_torque": 120.0 },
 	"RightAnkle Joint":		{ "max_torque": 50.0 },
 }
 
-func update_torque_motors(saved: Dictionary, delta: float) -> void:
+func update_torque_motors(saved: Dictionary, _delta: float) -> void:
 	if joints == null or saved == null:
 		return
 	
@@ -309,56 +280,51 @@ func update_torque_motors(saved: Dictionary, delta: float) -> void:
 		if not saved.has(joint_name):
 			continue
 		
-		var node_a = joint.get_node_or_null(joint.node_a)
-		var node_b = joint.get_node_or_null(joint.node_b)
-		var Ba: Basis = node_a.global_transform.basis
-		var gain_multiplier = JOINT_CONSTANTS[joint_name].gain_multiplier
+		var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
+		var node_b: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
 		
-		var Kp: float = 0.5 * gain_multiplier	# proportional gain
-		var Kd: float = 0.1 * gain_multiplier	# derivative gain
-		#var Ki: float = 0.0 * gain_multiplier	# integral gain
+		var B_joint: Basis = joint.global_basis
+		
+		var Kp: float = JOINT_CONSTANTS[joint_name].Kp
+		var Kd_x: float = JOINT_CONSTANTS[joint_name].Kd_x
+		var Kd_y: float = JOINT_CONSTANTS[joint_name].Kd_y
+		var Kd_z: float = JOINT_CONSTANTS[joint_name].Kd_z
 
-		var res = get_PID_data(joint, delta)
+		var res = get_PD_data(joint)
 		var error_vec = res["error_vec"]
-		var angular_velocity = res["angular_velocity"]
-		#var error_integral = res["error_integral"]
+		var angular_velocity_world = res["angular_velocity"]
 		
-		# ---- PD CONTROL ----
+		# ---- GRAVITY (World Frame) ----
 		var gravity_compensation: Vector3 = gravity_compensations[joint_name]
-		var gravity_comp_local = Ba.inverse() * gravity_compensation
-		var target_torque = (error_vec * Kp) - (angular_velocity * Kd) + gravity_comp_local
-		var temp_torque = (error_vec * Kp) - (angular_velocity * Kd)
-		#var target_torque = (error_vec * Kp) + (error_integral * Ki) - (angular_velocity * Kd)
+		
+		# ---- PER-AXIS PD (DECOUPLED) ----
+		var angular_velocity_joint = B_joint.inverse() * angular_velocity_world
+		#Note: If I end up needing better damping, add angular springs with low stiffness and highish damping
+		var damping := Vector3(-Kd_x * angular_velocity_joint.x, -Kd_y * angular_velocity_joint.y, -Kd_z * angular_velocity_joint.z)
+		var damping_world = B_joint * damping
+		
+		var target_torque := Vector3.ZERO
+
+		target_torque.x = Kp * error_vec.x + gravity_compensation.x
+		target_torque.y = Kp * error_vec.y + gravity_compensation.y
+		target_torque.z = Kp * error_vec.z + gravity_compensation.z
+		
+		target_torque += damping_world
 		
 		# Cap torque
 		var max_torque = JOINT_CONSTANTS[joint_name].max_torque
 		if target_torque.length() > max_torque:
 			target_torque = target_torque.normalized() * max_torque
 		
-		# Cap change in torque
-		var prev_torque = previous_joint_torques.get(joint_name, Vector3.ZERO)
-		var max_delta = max_torque * 0.1 * delta  # tune per joint
-		var delta_torque = target_torque - prev_torque
-		if delta_torque.length() > max_delta:
-			delta_torque = delta_torque.normalized() * max_delta
-
-		target_torque = prev_torque + delta_torque
-		previous_joint_torques[joint_name] = target_torque
-
-		var torque_world = Ba * target_torque
-		#var Bj: Basis = joint.global_transform.basis
-		#DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Bj.x, Color.RED, 0.01)
-		#DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Bj.y, Color.GREEN, 0.01)
-		#DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Bj.z, Color.YELLOW, 0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Ba * error_vec, Color.YELLOW, 0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Ba * gravity_comp_local, Color.RED, 0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + Ba * temp_torque, Color.BLUE, 0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + error_vec, Color.YELLOW, 0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + angular_velocity_world, Color.RED, 0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + target_torque, Color.BLUE, 0.01)
 		
-		node_a.external_torque -= torque_world
-		node_b.external_torque += torque_world
+		node_a.external_torque -= target_torque
+		node_b.external_torque += target_torque
 
 
-func update_velocity_motors(saved: Dictionary, delta: float, strength := 1.0) -> void:
+func update_velocity_motors(saved: Dictionary, _delta: float, strength := 1.0) -> void:
 	if joints == null or saved == null:
 		return
 
@@ -371,7 +337,7 @@ func update_velocity_motors(saved: Dictionary, delta: float, strength := 1.0) ->
 		if not saved.has(joint_name):
 			continue
 		
-		var res = get_PID_data(joint, delta)
+		var res = get_PD_data(joint)
 		var error_vec = res["error_vec"]
 		var angular_velocity = res["angular_velocity"]
 		
@@ -390,14 +356,6 @@ func update_velocity_motors(saved: Dictionary, delta: float, strength := 1.0) ->
 		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, vel_world.x)
 		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, vel_world.y)
 		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, vel_world.z)
-
-
-func debug_draw_joint_error(joint: Generic6DOFJoint3D, error_joint_local: Vector3) -> void:
-	var origin = joint.global_transform.origin
-	
-	var world_dir = joint.global_transform.basis * error_joint_local
-	
-	DebugDraw3D.draw_arrow(origin, origin + world_dir*2, Color.RED, 0.01)
 
 func restore_node(node_name: String) -> void: # This doesn't actually work. Would need to figure out the right position as well.
 	if stored_nodes.has(node_name):

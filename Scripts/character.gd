@@ -337,7 +337,10 @@ func get_joints() -> Array[Generic6DOFJoint3D]:
 
 func get_physical_bone_from_joint(joint_name: String) -> PhysicalBone3D:
 	var joint: Generic6DOFJoint3D = bone_sim.find_child(joint_name)
-	return joint.get_parent()
+	var physical_bone: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
+	if physical_bone == null:
+		push_error("No physical bone found in get_physical_bone_from_joint()")
+	return physical_bone
 
 
 # These gravity torque functions could be optimized if they didn't have to use find_child, and instead have a dictionary or something that maps them 1 to 1.
