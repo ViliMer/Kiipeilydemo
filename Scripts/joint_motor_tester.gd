@@ -53,9 +53,11 @@ var velocity_to_be_applied = Vector3(0,0,0)
 var velocity_multiplier = 0.0
 
 ##### CONFIGURATION #####
-var bones_to_simulate: Array[StringName] = ["LeftUpperLeg"]
-var free_joints: Array[String] = ["LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"] #["Spine Joint", "LowerChest Joint", "Chest Joint"] "LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"
-var joints_to_disable: Array[String] = []#["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint", "RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"]#["RightWrist Joint"]
+var bones_to_simulate: Array[StringName] = ["Spine"]
+#var free_joints: Array[String] = ["LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"] #["Spine Joint", "LowerChest Joint", "Chest Joint"] "LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"
+var free_joints: Array[String] = ["Spine Joint", "LowerChest Joint", "Chest Joint", "LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint", "RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"]
+#var free_joints: Array[String] = ["RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"] #["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint"]
+var joints_to_disable: Array[String] = []
 
 func init(c: CharacterBody3D):
 	character = c
@@ -250,17 +252,17 @@ func get_PD_data(joint: Generic6DOFJoint3D) -> Dictionary:
 '''
 
 var JOINT_CONSTANTS = {
-	"Spine Joint":			{ "max_torque": 120.0, "gain_multiplier": 20.0 },
-	"LowerChest Joint":		{ "max_torque": 120.0, "gain_multiplier": 15.0 },
-	"Chest Joint":			{ "max_torque": 120.0, "gain_multiplier": 10.0 },
-	"LeftUpperChest Joint":	{ "max_torque": 120.0, "gain_multiplier": 0.0 },
-	"LeftShoulder Joint":	{ "max_torque": 80.0, "gain_multiplier": 0.0 },
-	"LeftElbow Joint":		{ "max_torque": 40.0, "gain_multiplier": 0.0 },
-	"LeftWrist Joint":		{ "max_torque": 15.0, "gain_multiplier": 0.0 },
-	"RightUpperChest Joint":{ "max_torque": 120.0, "gain_multiplier": 0.0 },
-	"RightShoulder Joint":	{ "max_torque": 80.0, "gain_multiplier": 0.0 },
-	"RightElbow Joint":		{ "max_torque": 40.0, "gain_multiplier": 0.0 },
-	"RightWrist Joint":		{ "max_torque": 15.0, "gain_multiplier": 0.0 },
+	"Spine Joint":			{ "max_torque": 120.0, "Kp": Vector3(5.0, 5.0, 5.0), "Kd": Vector3(1.0, 1.0, 1.0) },
+	"LowerChest Joint":		{ "max_torque": 120.0, "Kp": Vector3(5.0, 5.0, 5.0), "Kd": Vector3(0.3, 0.3, 0.3) },
+	"Chest Joint":			{ "max_torque": 120.0, "Kp": Vector3(5.0, 5.0, 5.0), "Kd": Vector3(0.3, 0.3, 0.3) },
+	"LeftUpperChest Joint":	{ "max_torque": 120.0, "Kp": Vector3(0.0, 5.0, 5.0), "Kd": Vector3(0.0, 0.5, 0.5) },
+	"LeftShoulder Joint":	{ "max_torque": 80.0, "Kp": Vector3(3.0, 3.0, 3.0), "Kd": Vector3(0.3, 0.3, 0.3) },
+	"LeftElbow Joint":		{ "max_torque": 40.0, "Kp": Vector3(0.0, 2.0, 0.0), "Kd": Vector3(0.0, 0.2, 0.0) },
+	"LeftWrist Joint":		{ "max_torque": 15.0, "Kp": Vector3(1.0, 0.0, 1.0), "Kd": Vector3(0.1, 0.0, 0.1) },
+	"RightUpperChest Joint":{ "max_torque": 120.0, "Kp": Vector3(5.0, 5.0, 5.0), "Kd": Vector3(0.0, 0.5, 0.5) },
+	"RightShoulder Joint":	{ "max_torque": 80.0, "Kp": Vector3(3.0, 3.0, 3.0), "Kd": Vector3(0.3, 0.3, 0.3) },
+	"RightElbow Joint":		{ "max_torque": 40.0, "Kp": Vector3(0.0, 2.0, 0.0), "Kd": Vector3(0.0, 0.2, 0.0) },
+	"RightWrist Joint":		{ "max_torque": 15.0, "Kp": Vector3(1.0, 1.0, 1.0), "Kd": Vector3(0.1, 0.0, 0.1) },
 	"LeftHip Joint":		{ "max_torque": 150.0, "Kp": 5.0, "Kd_x": 3.0, "Kd_y": 1.0, "Kd_z": 3.0 }, # Here y is the twist axis
 	"LeftKnee Joint":		{ "max_torque": 120.0, "Kp": 4.0, "Kd_x": 1.0, "Kd_y": 1.0, "Kd_z": 1.0 },
 	"LeftAnkle Joint":		{ "max_torque": 50.0, "Kp": 0.5, "Kd_x": 0.1, "Kd_y": 0.1, "Kd_z": 0.1 },
@@ -285,10 +287,8 @@ func update_torque_motors(saved: Dictionary, _delta: float) -> void:
 		
 		var B_joint: Basis = joint.global_basis
 		
-		var Kp: float = JOINT_CONSTANTS[joint_name].Kp
-		var Kd_x: float = JOINT_CONSTANTS[joint_name].Kd_x
-		var Kd_y: float = JOINT_CONSTANTS[joint_name].Kd_y
-		var Kd_z: float = JOINT_CONSTANTS[joint_name].Kd_z
+		var Kp: Vector3 = JOINT_CONSTANTS[joint_name].Kp
+		var Kd: Vector3 = JOINT_CONSTANTS[joint_name].Kd
 
 		var res = get_PD_data(joint)
 		var error_vec = res["error_vec"]
@@ -299,17 +299,11 @@ func update_torque_motors(saved: Dictionary, _delta: float) -> void:
 		
 		# ---- PER-AXIS PD (DECOUPLED) ----
 		var angular_velocity_joint = B_joint.inverse() * angular_velocity_world
-		#Note: If I end up needing better damping, add angular springs with low stiffness and highish damping
-		var damping := Vector3(-Kd_x * angular_velocity_joint.x, -Kd_y * angular_velocity_joint.y, -Kd_z * angular_velocity_joint.z)
+		#Note: The joints have angular springs with low stiffness and moderate damping
+		var damping: Vector3 = -Kd * angular_velocity_joint
 		var damping_world = B_joint * damping
 		
-		var target_torque := Vector3.ZERO
-
-		target_torque.x = Kp * error_vec.x + gravity_compensation.x
-		target_torque.y = Kp * error_vec.y + gravity_compensation.y
-		target_torque.z = Kp * error_vec.z + gravity_compensation.z
-		
-		target_torque += damping_world
+		var target_torque: Vector3 = Kp * error_vec + gravity_compensation + damping_world
 		
 		# Cap torque
 		var max_torque = JOINT_CONSTANTS[joint_name].max_torque
@@ -392,10 +386,6 @@ func disable_velocity_motors(joint_names: Array[String]) -> void:
 		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
 		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
 		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
-
-
-func _on_save_pressed() -> void:
-	save_joint_angles(free_joints)
 
 func _on_torque_magnitude_slider_value_changed(value: float) -> void:
 	torque_mag_line_edit.text = str(value)
