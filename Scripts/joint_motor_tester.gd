@@ -114,7 +114,7 @@ func update_motor_test(delta: float):
 		JointMotorTesterState.DISABLED:
 			pass
 		JointMotorTesterState.DRIVE_TORQUE_MOTORS_TO_POSE:
-			update_torque_motors(saved_joint_angles, delta)
+			update_velocity_torque_motors(saved_joint_angles)
 		JointMotorTesterState.DRIVE_VELOCITY_MOTORS_TO_POSE:
 			update_velocity_motors(saved_joint_angles, delta)
 		JointMotorTesterState.APPLY_TORQUE:
@@ -189,7 +189,7 @@ func apply_velocity(velocity: Vector3, joint_names: Array[String]) -> void:
 		)
 
 # This function returns P and D in world space
-func get_PD_data(joint: Generic6DOFJoint3D) -> Dictionary:
+func get_PD_data(joint: Generic6DOFJoint3D, target: Dictionary) -> Dictionary:
 
 	var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
 	var node_b: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
@@ -207,7 +207,7 @@ func get_PD_data(joint: Generic6DOFJoint3D) -> Dictionary:
 	var q_current: Quaternion = rel_basis.get_rotation_quaternion().normalized()
 
 	# ---- TARGET QUATERNION (joint-local) ----
-	var s = saved_joint_angles.get(joint.name, null)
+	var s = target.get(joint.name, null)
 	if s == null:
 		return {"error_vec": Vector3.ZERO, "angular_velocity": Vector3.ZERO, "error_integral": Vector3.ZERO}
 
@@ -271,15 +271,69 @@ var JOINT_CONSTANTS = {
 	"RightAnkle Joint":		{ "max_torque": 50.0 },
 }
 
-func update_torque_motors(saved: Dictionary, _delta: float) -> void:
-	if joints == null or saved == null:
+func update_velocity_torque_motors(target: Dictionary) -> void:
+	if joints == null or target == null:
 		return
 	
 	var gravity_compensations = character.compute_gravity_compensation_for_joints(free_joints)
 
 	for joint in joints:
 		var joint_name = joint.name
-		if not saved.has(joint_name):
+		if not target.has(joint_name):
+			continue
+		
+		var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
+		var node_b: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
+		
+		var B_joint: Basis = joint.global_basis
+		
+		var Kd: Vector3 = JOINT_CONSTANTS[joint_name].Kd
+
+		var res = get_PD_data(joint, target)
+		var error_vec = res["error_vec"]
+		var angular_velocity_world = res["angular_velocity"]
+		
+		# ---- GRAVITY (World Frame) ----
+		var gravity_compensation: Vector3 = gravity_compensations[joint_name]
+		var error_joint = B_joint.inverse() * error_vec
+		
+		var omega_max = Vector3(10.0,10.0,10.0) #JOINT_CONSTANTS[joint_name].omega_max # Vector3
+		var error_scale = Vector3(0.2,0.2,0.2) #JOINT_CONSTANTS[joint_name].error_scale # Vector3
+		var omega_target_joint := Vector3(
+			omega_max.x * tanh(error_joint.x / error_scale.x),
+			omega_max.y * tanh(error_joint.y / error_scale.y),
+			omega_max.z * tanh(error_joint.z / error_scale.z)
+		)
+		
+		# Control velocity
+		var angular_velocity_joint = B_joint.inverse() * angular_velocity_world
+		var omega_error = omega_target_joint - angular_velocity_joint
+		var motor_joint = Kd * omega_error
+		var motor_world = B_joint * motor_joint
+		
+		var target_torque = motor_world + gravity_compensation
+		
+		# Cap torque
+		var max_torque = JOINT_CONSTANTS[joint_name].max_torque
+		if target_torque.length() > max_torque:
+			target_torque = target_torque.normalized() * max_torque
+		
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + error_vec, Color.YELLOW, 0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + angular_velocity_world, Color.RED, 0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + target_torque, Color.BLUE, 0.01)
+		
+		node_a.external_torque -= target_torque
+		node_b.external_torque += target_torque
+
+func update_torque_motors(target: Dictionary, _delta: float) -> void:
+	if joints == null or target == null:
+		return
+	
+	var gravity_compensations = character.compute_gravity_compensation_for_joints(free_joints)
+
+	for joint in joints:
+		var joint_name = joint.name
+		if not target.has(joint_name):
 			continue
 		
 		var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
@@ -290,7 +344,7 @@ func update_torque_motors(saved: Dictionary, _delta: float) -> void:
 		var Kp: Vector3 = JOINT_CONSTANTS[joint_name].Kp
 		var Kd: Vector3 = JOINT_CONSTANTS[joint_name].Kd
 
-		var res = get_PD_data(joint)
+		var res = get_PD_data(joint, target)
 		var error_vec = res["error_vec"]
 		var angular_velocity_world = res["angular_velocity"]
 		
@@ -318,8 +372,8 @@ func update_torque_motors(saved: Dictionary, _delta: float) -> void:
 		node_b.external_torque += target_torque
 
 
-func update_velocity_motors(saved: Dictionary, _delta: float, strength := 1.0) -> void:
-	if joints == null or saved == null:
+func update_velocity_motors(target: Dictionary, _delta: float, strength := 1.0) -> void:
+	if joints == null or target == null:
 		return
 
 	var Kp := 1.0 * strength	# proportional gain
@@ -328,10 +382,10 @@ func update_velocity_motors(saved: Dictionary, _delta: float, strength := 1.0) -
 	for joint in joints:
 
 		var joint_name = joint.name
-		if not saved.has(joint_name):
+		if not target.has(joint_name):
 			continue
 		
-		var res = get_PD_data(joint)
+		var res = get_PD_data(joint, target)
 		var error_vec = res["error_vec"]
 		var angular_velocity = res["angular_velocity"]
 		
