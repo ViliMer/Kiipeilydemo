@@ -91,6 +91,7 @@ var bone_structure = {
 }
 
 var cached_descendant_bones = {} # Cache a list of children for all parent bones
+var bone_rotation_offsets = {} #Store offsets that allow transformation between physical bones and bones
 
 func get_all_descendants(bone_name: String, children_map: Dictionary, descendants := []) -> Array:
 	if children_map[bone_name].is_empty():
@@ -103,9 +104,20 @@ func get_all_descendants(bone_name: String, children_map: Dictionary, descendant
 
 	return descendants
 
-var bone_rotation_offsets = {} #Store offsets that allow transformation between physical bones and bones
+func compute_mass() -> float:
+	
+	var mass = 0.0
+	
+	var physical_bones = bone_sim.get_children()
+	for physical_bone in physical_bones:
+		if physical_bone is PhysicalBone3D:
+			mass += physical_bone.mass
+	
+	return mass
 
 func _ready() -> void:
+	print("Total climber mass: " + str(compute_mass()) + " kg")
+	
 	compute_offsets()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	mesh.visible = true
