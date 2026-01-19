@@ -53,11 +53,15 @@ var velocity_to_be_applied = Vector3(0,0,0)
 var velocity_multiplier = 0.0
 
 ##### CONFIGURATION #####
-var bones_to_simulate: Array[StringName] = ["Spine"]
-#var free_joints: Array[String] = ["LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"] #["Spine Joint", "LowerChest Joint", "Chest Joint"] "LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"
-var free_joints: Array[String] = ["Spine Joint", "LowerChest Joint", "Chest Joint", "LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint", "RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"]
-#var free_joints: Array[String] = ["RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"] #["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint"]
-var joints_to_disable: Array[String] = []
+var bones_to_simulate: Array[StringName] = ["Hips"]
+var free_joints: Array[String] =	[
+										"Spine Joint", "LowerChest Joint", "Chest Joint",
+										"LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint",
+										"RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint",
+										"LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint",
+										"RightHip Joint", "RightKnee Joint", "RightAnkle Joint"
+									]
+var joints_to_disable: Array[String] = ["Root Joint"]
 
 func init(c: CharacterBody3D):
 	character = c
@@ -81,6 +85,8 @@ func enable():
 	for joint in joints:
 		if joint.name in joints_to_disable:
 			var bone = joint.get_node_or_null(joint.node_b)
+			if joint.name == "Root Joint":
+				bone = joint.get_node_or_null(joint.node_a)
 			var parent = bone.get_parent()
 			if parent:
 				parent.remove_child(bone)
@@ -252,23 +258,23 @@ func get_PD_data(joint: Generic6DOFJoint3D, target: Dictionary) -> Dictionary:
 '''
 
 var JOINT_CONSTANTS = {
-	"Spine Joint":			{ "max_torque": 120.0, "Kp": Vector3(5.0, 5.0, 5.0), "Kd": Vector3(1.0, 1.0, 1.0) },
-	"LowerChest Joint":		{ "max_torque": 120.0, "Kp": Vector3(5.0, 5.0, 5.0), "Kd": Vector3(0.3, 0.3, 0.3) },
-	"Chest Joint":			{ "max_torque": 120.0, "Kp": Vector3(5.0, 5.0, 5.0), "Kd": Vector3(0.3, 0.3, 0.3) },
-	"LeftUpperChest Joint":	{ "max_torque": 120.0, "Kp": Vector3(0.0, 5.0, 5.0), "Kd": Vector3(0.0, 0.5, 0.5) },
-	"LeftShoulder Joint":	{ "max_torque": 80.0, "Kp": Vector3(3.0, 3.0, 3.0), "Kd": Vector3(0.3, 0.3, 0.3) },
-	"LeftElbow Joint":		{ "max_torque": 40.0, "Kp": Vector3(0.0, 2.0, 0.0), "Kd": Vector3(0.0, 0.2, 0.0) },
-	"LeftWrist Joint":		{ "max_torque": 15.0, "Kp": Vector3(1.0, 0.0, 1.0), "Kd": Vector3(0.1, 0.0, 0.1) },
-	"RightUpperChest Joint":{ "max_torque": 120.0, "Kp": Vector3(5.0, 5.0, 5.0), "Kd": Vector3(0.0, 0.5, 0.5) },
-	"RightShoulder Joint":	{ "max_torque": 80.0, "Kp": Vector3(3.0, 3.0, 3.0), "Kd": Vector3(0.3, 0.3, 0.3) },
-	"RightElbow Joint":		{ "max_torque": 40.0, "Kp": Vector3(0.0, 2.0, 0.0), "Kd": Vector3(0.0, 0.2, 0.0) },
-	"RightWrist Joint":		{ "max_torque": 15.0, "Kp": Vector3(1.0, 1.0, 1.0), "Kd": Vector3(0.1, 0.0, 0.1) },
-	"LeftHip Joint":		{ "max_torque": 150.0, "Kp": 5.0, "Kd_x": 3.0, "Kd_y": 1.0, "Kd_z": 3.0 }, # Here y is the twist axis
-	"LeftKnee Joint":		{ "max_torque": 120.0, "Kp": 4.0, "Kd_x": 1.0, "Kd_y": 1.0, "Kd_z": 1.0 },
-	"LeftAnkle Joint":		{ "max_torque": 50.0, "Kp": 0.5, "Kd_x": 0.1, "Kd_y": 0.1, "Kd_z": 0.1 },
-	"RightHip Joint":		{ "max_torque": 150.0 },
-	"RightKnee Joint":		{ "max_torque": 120.0 },
-	"RightAnkle Joint":		{ "max_torque": 50.0 },
+	"Spine Joint":			{ "max_torque": 200.0, "Kd": Vector3(5.0, 5.0, 5.0), "omega_max": Vector3(5.0, 5.0, 5.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
+	"LowerChest Joint":		{ "max_torque": 120.0, "Kd": Vector3(4.0, 4.0, 4.0), "omega_max": Vector3(5.0, 5.0, 5.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
+	"Chest Joint":			{ "max_torque": 120.0, "Kd": Vector3(3.0, 3.0, 3.0), "omega_max": Vector3(5.0, 5.0, 5.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
+	"LeftUpperChest Joint":	{ "max_torque": 120.0, "Kd": Vector3(0.0, 2.5, 3.5), "omega_max": Vector3(0.0, 10.0, 10.0), "error_scale": Vector3(1.0, 0.25, 0.25) }, # x = twist, y = fwd/back, z = up/down
+	"LeftShoulder Joint":	{ "max_torque": 80.0, "Kd": Vector3(0.5, 2.0, 2.0), "omega_max": Vector3(5.0, 12.0, 12.0), "error_scale": Vector3(0.5, 0.25, 0.25) }, # x = twist, y = forward / back, z = lateral raise
+	"LeftElbow Joint":		{ "max_torque": 60.0, "Kd": Vector3(0.0, 1.0, 0.0), "omega_max": Vector3(0.0, 12.0, 0.0), "error_scale": Vector3(1.0, 0.25, 1.0) },
+	"LeftWrist Joint":		{ "max_torque": 30.0, "Kd": Vector3(0.1, 0.1, 0.2), "omega_max": Vector3(5.0, 5.0, 12.0), "error_scale": Vector3(0.5, 0.5, 0.25) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
+	"RightUpperChest Joint":{ "max_torque": 120.0, "Kd": Vector3(0.0, 2.5, 3.5), "omega_max": Vector3(0.0, 10.0, 10.0), "error_scale": Vector3(1.0, 0.25, 0.25) }, # x = twist, y = fwd/back, z = up/down
+	"RightShoulder Joint":	{ "max_torque": 80.0, "Kd": Vector3(0.5, 2.0, 2.0), "omega_max": Vector3(5.0, 12.0, 12.0), "error_scale": Vector3(0.5, 0.25, 0.25) }, # x = twist, y = forward / back, z = lateral raise
+	"RightElbow Joint":		{ "max_torque": 60.0, "Kd": Vector3(0.0, 1.0, 0.0), "omega_max": Vector3(0.0, 12.0, 0.0), "error_scale": Vector3(1.0, 0.25, 1.0) },
+	"RightWrist Joint":		{ "max_torque": 30.0, "Kd": Vector3(0.1, 0.1, 0.2), "omega_max": Vector3(5.0, 5.0, 12.0), "error_scale": Vector3(0.5, 0.5, 0.25) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
+	"LeftHip Joint":		{ "max_torque": 150.0, "Kd": Vector3(6.0, 0.5, 4.0), "omega_max": Vector3(20.0, 10.0, 20.0), "error_scale": Vector3(0.3, 0.5, 0.3) }, # Here y is the twist axis
+	"LeftKnee Joint":		{ "max_torque": 120.0, "Kd": Vector3(2.0, 0.0, 0.0), "omega_max": Vector3(20.0, 0.0, 0.0), "error_scale": Vector3(0.3, 1.0, 1.0) },
+	"LeftAnkle Joint":		{ "max_torque": 50.0, "Kd": Vector3(0.5, 0.5, 0.0), "omega_max": Vector3(10.0, 10.0, 0.0), "error_scale": Vector3(0.2, 0.2, 1.0) },
+	"RightHip Joint":		{ "max_torque": 150.0, "Kd": Vector3(6.0, 0.5, 4.0), "omega_max": Vector3(20.0, 10.0, 20.0), "error_scale": Vector3(0.3, 0.5, 0.3) },
+	"RightKnee Joint":		{ "max_torque": 120.0, "Kd": Vector3(2.0, 0.0, 0.0), "omega_max": Vector3(20.0, 0.0, 0.0), "error_scale": Vector3(0.3, 1.0, 1.0) },
+	"RightAnkle Joint":		{ "max_torque": 50.0, "Kd": Vector3(0.5, 0.5, 0.0), "omega_max": Vector3(10.0, 10.0, 0.0), "error_scale": Vector3(0.2, 0.2, 1.0) },
 }
 
 func update_velocity_torque_motors(target: Dictionary) -> void:
@@ -297,33 +303,38 @@ func update_velocity_torque_motors(target: Dictionary) -> void:
 		var gravity_compensation: Vector3 = gravity_compensations[joint_name]
 		var error_joint = B_joint.inverse() * error_vec
 		
-		var omega_max = Vector3(10.0,10.0,10.0) #JOINT_CONSTANTS[joint_name].omega_max # Vector3
-		var error_scale = Vector3(0.2,0.2,0.2) #JOINT_CONSTANTS[joint_name].error_scale # Vector3
+		var omega_max = JOINT_CONSTANTS[joint_name].omega_max
+		var error_scale = JOINT_CONSTANTS[joint_name].error_scale
 		var omega_target_joint := Vector3(
 			omega_max.x * tanh(error_joint.x / error_scale.x),
 			omega_max.y * tanh(error_joint.y / error_scale.y),
 			omega_max.z * tanh(error_joint.z / error_scale.z)
 		)
 		
+		# Deadzone might prevent micro-jitter:
+		if abs(error_joint.x) < 0.01:
+			omega_target_joint.x = 0.0
+		if abs(error_joint.y) < 0.01:
+			omega_target_joint.y = 0.0
+		if abs(error_joint.z) < 0.01:
+			omega_target_joint.z = 0.0
+		
 		# Control velocity
 		var angular_velocity_joint = B_joint.inverse() * angular_velocity_world
 		var omega_error = omega_target_joint - angular_velocity_joint
-		var motor_joint = Kd * omega_error
-		var motor_world = B_joint * motor_joint
+		var joint_velocity_correction_torque = Kd * omega_error
+		var joint_velocity_correction_torque_world = B_joint * joint_velocity_correction_torque
 		
-		var target_torque = motor_world + gravity_compensation
+		var target_torque_world = joint_velocity_correction_torque_world + gravity_compensation
 		
 		# Cap torque
 		var max_torque = JOINT_CONSTANTS[joint_name].max_torque
-		if target_torque.length() > max_torque:
-			target_torque = target_torque.normalized() * max_torque
+		if target_torque_world.length() > max_torque:
+			print("Joint: " + joint_name + " hit its torque limit")
+			target_torque_world = target_torque_world.normalized() * max_torque
 		
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + error_vec, Color.YELLOW, 0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + angular_velocity_world, Color.RED, 0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin, joint.global_transform.origin + target_torque, Color.BLUE, 0.01)
-		
-		node_a.external_torque -= target_torque
-		node_b.external_torque += target_torque
+		node_a.external_torque -= target_torque_world
+		node_b.external_torque += target_torque_world
 
 func update_torque_motors(target: Dictionary, _delta: float) -> void:
 	if joints == null or target == null:

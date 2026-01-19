@@ -274,9 +274,9 @@ radius = 0.1
 height = 0.325
 radius = 0.08
 
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_wbia7"]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_ejsiy"]
+radius = 0.06
 height = 0.3
-radius = 0.08
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_1g2gg"]
 height = 0.29
@@ -286,9 +286,9 @@ radius = 0.1
 height = 0.325
 radius = 0.08
 
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_rtvxd"]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_2mse5"]
+radius = 0.06
 height = 0.3
-radius = 0.08
 
 [sub_resource type="Animation" id="Animation_go6df"]
 resource_name = "A_TPose"
@@ -18575,7 +18575,6 @@ bones/52/rotation = Quaternion(4.409676e-08, 1, 5.9604645e-08, 1.9452786e-08)
 bones/52/scale = Vector3(1, 1, 1)
 
 [node name="Mannequin" type="MeshInstance3D" parent="Imported Character/Rig/GeneralSkeleton"]
-visible = false
 mesh = SubResource("ArrayMesh_mjki1")
 skin = SubResource("Skin_e417x")
 
@@ -18597,18 +18596,24 @@ shape = SubResource("CapsuleShape3D_lkv7d")
 disabled = true
 
 [node name="Physical Bone Hips" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-1, -1.5496256e-06, -1.7038878e-06, 1.2629961e-06, 0.24968825, -0.9683263, 1.925984e-06, -0.9683263, -0.24968825, 1.1920929e-07, 1.0669079, -0.037401572)
+transform = Transform3D(-1, -1.5496255e-06, -1.7038878e-06, 1.2629961e-06, 0.24968825, -0.9683263, 1.925984e-06, -0.9683263, -0.24968825, 1.1920929e-07, 1.0669079, -0.037401572)
 visible = false
 collision_layer = 2
 collision_mask = 257
-joint_offset = Transform3D(1, 0, 0, 0, 0.9999992, 0, 0, 0, 0.9999992, 1.4796804e-09, -1.4808029e-06, 0.06909604)
-body_offset = Transform3D(-1, -1.5496255e-06, -1.7038878e-06, 1.2629961e-06, 0.24968825, -0.9683263, 1.925984e-06, -0.9683263, -0.24968825, 1.1920929e-07, 0.06690788, 0.017251037)
+joint_offset = Transform3D(1, 0, 0, 0, 0.9999992, 0, 0, 0, 0.9999992, 1.4796839e-09, -1.4808029e-06, 0.06909604)
+body_offset = Transform3D(-1, -1.5496256e-06, -1.7038878e-06, 1.2629961e-06, 0.24968825, -0.9683263, 1.925984e-06, -0.9683263, -0.24968825, 1.1920929e-07, 0.06690788, 0.017251037)
 mass = 10.28
 bone_name = "Hips"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone Hips"]
 transform = Transform3D(-4.3711392e-08, 0.9999998, 0, 4.4703484e-08, 1.7763568e-15, 1, 1.0000001, 4.371138e-08, -4.4703484e-08, 0, -0.024, 0)
 shape = SubResource("CapsuleShape3D_ushfy")
+
+[node name="Root Joint" type="Generic6DOFJoint3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone Hips"]
+transform = Transform3D(-1, 2.5753743e-06, 8.822396e-06, -8.834819e-06, -0.004864514, -0.9999882, -2.532427e-06, -0.9999882, 0.004864514, 1.2717765e-06, 0.00028668344, 0.061680794)
+visible = false
+node_a = NodePath("../../Physical Bone Root")
+node_b = NodePath("..")
 
 [node name="Physical Bone Spine" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
 transform = Transform3D(-1, -8.834819e-06, -2.532427e-06, 1.4306329e-06, 0.12254983, -0.9924624, 9.078573e-06, -0.9924624, -0.12254983, 1.4305115e-06, 1.1953516, -0.012553944)
@@ -18624,25 +18629,25 @@ transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0)
 shape = SubResource("CylinderShape3D_lkv7d")
 
 [node name="Spine Joint" type="Generic6DOFJoint3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone Spine"]
-transform = Transform3D(-1, 2.5753743e-06, 8.822396e-06, -8.834819e-06, -0.004864514, -0.9999882, -2.532427e-06, -0.9999882, 0.004864514, 1.2717765e-06, 0.00028668344, 0.061680794)
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 1.2717765e-06, 0.00028668344, 0.061680794)
 visible = false
 node_a = NodePath("../../Physical Bone Hips")
 node_b = NodePath("..")
-angular_limit_x/upper_angle = 0.17453292
-angular_limit_x/lower_angle = -0.34906584
-angular_limit_y/upper_angle = 0.34906584
-angular_limit_y/lower_angle = -0.5235988
-angular_limit_z/upper_angle = 0.34906584
-angular_limit_z/lower_angle = -0.34906584
+angular_limit_x/upper_angle = 0.2617994
+angular_limit_x/lower_angle = -0.2617994
+angular_limit_y/upper_angle = 0.2617994
+angular_limit_y/lower_angle = -0.2617994
+angular_limit_z/upper_angle = 0.2617994
+angular_limit_z/lower_angle = -0.2617994
 angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 10.0
+angular_spring_x/stiffness = 200.0
+angular_spring_x/damping = 100.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
-angular_spring_y/damping = 10.0
+angular_spring_y/stiffness = 200.0
+angular_spring_y/damping = 100.0
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 10.0
+angular_spring_z/stiffness = 200.0
+angular_spring_z/damping = 100.0
 
 [node name="Physical Bone Chest" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
 transform = Transform3D(1, 2.3915034e-06, -2.4725105e-06, -2.5474146e-06, 0.031845357, -0.9994929, -2.3115524e-06, 0.9994928, 0.03184536, 1.9073486e-06, 1.3275666, -0.007200369)
@@ -18658,32 +18663,32 @@ transform = Transform3D(1, -7.1764816e-13, -6.82121e-13, 0, 0, 1, 4.2632564e-14,
 shape = SubResource("CylinderShape3D_ushfy")
 
 [node name="LowerChest Joint" type="Generic6DOFJoint3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone Chest"]
-transform = Transform3D(1, -2.4728827e-06, -2.3911193e-06, 2.3915038e-06, 0.00015557185, 1, -2.4725102e-06, -0.99999994, 0.00015556812, -1.7326722e-06, -4.7951937e-05, 0.07060087)
+transform = Transform3D(1, 0, 0, 0, -4.3711385e-08, -1, 0, 0.99999994, -4.371139e-08, -1.7326722e-06, -4.7951937e-05, 0.07060087)
 visible = false
 node_a = NodePath("../../Physical Bone Spine")
 node_b = NodePath("..")
-angular_limit_x/upper_angle = 0.17453292
-angular_limit_x/lower_angle = -0.34906584
-angular_limit_y/upper_angle = 0.34906584
-angular_limit_y/lower_angle = -0.34906584
-angular_limit_z/upper_angle = 0.34906584
-angular_limit_z/lower_angle = -0.34906584
+angular_limit_x/upper_angle = 0.2617994
+angular_limit_x/lower_angle = -0.2617994
+angular_limit_y/upper_angle = 0.2617994
+angular_limit_y/lower_angle = -0.2617994
+angular_limit_z/upper_angle = 0.2617994
+angular_limit_z/lower_angle = -0.2617994
 angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 10.0
+angular_spring_x/stiffness = 100.0
+angular_spring_x/damping = 75.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
-angular_spring_y/damping = 10.0
+angular_spring_y/stiffness = 100.0
+angular_spring_y/damping = 75.0
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 10.0
+angular_spring_z/stiffness = 100.0
+angular_spring_z/damping = 75.0
 
 [node name="Physical Bone UpperChest" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(1, 5.3777085e-06, 8.2827216e-07, 6.5379163e-07, 0.032364465, -0.9994762, -5.4016973e-06, 0.9994762, 0.032364465, 5.364418e-06, 1.4845006, -0.012264552)
+transform = Transform3D(1, 5.3777085e-06, 8.2827216e-07, 6.5379163e-07, 0.032364465, -0.9994762, -5.4016973e-06, 0.9994762, 0.032364465, 5.364418e-06, 1.4845006, -0.012264551)
 collision_layer = 2
 collision_mask = 257
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.436095e-06, 1.4040386e-05, 0.08644624)
-body_offset = Transform3D(1, 5.3777085e-06, 8.2827216e-07, 6.537937e-07, 0.032364085, -0.9994762, -5.401697e-06, 0.9994762, 0.032364085, 5.364418e-06, 0.08640051, -0.0028117867)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.436095e-06, 1.4039455e-05, 0.08644624)
+body_offset = Transform3D(1, 5.3777085e-06, 8.2827216e-07, 6.537937e-07, 0.032364085, -0.9994762, -5.401697e-06, 0.9994762, 0.032364085, 5.364418e-06, 0.08640051, -0.0028117858)
 mass = 5.63
 bone_name = "UpperChest"
 
@@ -18692,33 +18697,33 @@ transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0)
 shape = SubResource("CylinderShape3D_owm7s")
 
 [node name="Chest Joint" type="Generic6DOFJoint3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone UpperChest"]
-transform = Transform3D(1, 8.483829e-07, -5.3745725e-06, 5.377708e-06, -0.0037407354, 0.9999929, 8.2827205e-07, -0.9999929, -0.0037407354, -5.4386055e-06, 0.00046331063, 0.086561084)
+transform = Transform3D(1, 0, 0, 0, -4.3711385e-08, -0.9999999, 0, 0.9999999, -4.3711385e-08, -5.4386055e-06, 0.00046331063, 0.086561084)
 visible = false
 node_a = NodePath("../../Physical Bone Chest")
 node_b = NodePath("..")
-angular_limit_x/upper_angle = 0.17453292
-angular_limit_x/lower_angle = -0.34906584
-angular_limit_y/upper_angle = 0.34906584
-angular_limit_y/lower_angle = -0.34906584
-angular_limit_z/upper_angle = 0.34906584
-angular_limit_z/lower_angle = -0.34906584
+angular_limit_x/upper_angle = 0.2617994
+angular_limit_x/lower_angle = -0.2617994
+angular_limit_y/upper_angle = 0.2617994
+angular_limit_y/lower_angle = -0.2617994
+angular_limit_z/upper_angle = 0.2617994
+angular_limit_z/lower_angle = -0.2617994
 angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 10.0
+angular_spring_x/stiffness = 100.0
+angular_spring_x/damping = 50.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
-angular_spring_y/damping = 10.0
+angular_spring_y/stiffness = 100.0
+angular_spring_y/damping = 50.0
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 10.0
+angular_spring_z/stiffness = 100.0
+angular_spring_z/damping = 50.0
 
 [node name="Physical Bone Neck" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-1, -4.5579363e-06, 5.7865964e-06, -6.5435156e-06, 0.18893051, -0.98199046, 3.3825854e-06, -0.98199046, -0.18893051, 9.536743e-07, 1.6114941, -0.007259113)
+transform = Transform3D(-1, -4.5579363e-06, 5.7865964e-06, -6.5435156e-06, 0.18893051, -0.98199046, 3.3825854e-06, -0.98199046, -0.18893051, 9.536743e-07, 1.6114941, -0.0072591132)
 collision_layer = 2
 collision_mask = 257
 joint_type = 5
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1929379e-06, -1.605926e-05, 0.04133526)
-body_offset = Transform3D(-1, -4.5579363e-06, 5.7865964e-06, -6.5435165e-06, 0.18893084, -0.9819904, 3.3825831e-06, -0.9819904, -0.18893084, 9.536743e-07, 0.040593863, 0.0077937352)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1929379e-06, -1.6059726e-05, 0.04133526)
+body_offset = Transform3D(-1, -4.5579363e-06, 5.7865964e-06, -6.5435165e-06, 0.18893084, -0.9819904, 3.3825831e-06, -0.9819904, -0.18893084, 9.536743e-07, 0.040593863, 0.007793735)
 mass = 6.2
 bone_name = "Neck"
 joint_constraints/x/linear_limit_enabled = true
@@ -18790,9 +18795,9 @@ transform = Transform3D(1, 8.526513e-13, 9.094947e-13, 1.364242e-12, -1.4901161e
 shape = SubResource("CylinderShape3D_nytcm")
 
 [node name="Physical Bone LeftShoulder" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(2.9572297e-08, 0.622966, -0.78224903, -0.99227786, 0.097026534, 0.07726977, 0.12403534, 0.77620834, 0.6181553, 0.10535014, 1.5326501, -0.0015631765)
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2693927e-06, 1.2478966e-05, 0.11065264)
-body_offset = Transform3D(0.1240352, 0.77620846, 0.6181552, 0, 0.6229658, -0.7822491, -0.99227786, 0.097026415, 0.07726969, -0.06841035, 0.086550154, -0.008550048)
+transform = Transform3D(2.9572297e-08, 0.62296593, -0.78224903, -0.99227786, 0.09702653, 0.07726977, 0.12403534, 0.7762083, 0.6181553, 0.10535014, 1.5326501, -0.001563184)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.270324e-06, 1.2493867e-05, 0.11065264)
+body_offset = Transform3D(0.1240352, 0.7762085, 0.6181551, 0, 0.6229658, -0.78224915, -0.99227786, 0.09702642, 0.07726968, -0.06841036, 0.086550154, -0.008550048)
 mass = 2.81
 bone_name = "LeftShoulder"
 
@@ -18806,27 +18811,24 @@ transform = Transform3D(-0.07704424, -0.9922777, 0.09720568, 0.0060747564, 0.097
 visible = false
 node_a = NodePath("../../Physical Bone UpperChest")
 node_b = NodePath("..")
-angular_limit_y/upper_angle = 0.17453292
-angular_limit_y/lower_angle = -0.17453292
-angular_limit_z/upper_angle = 0.17453292
+angular_limit_y/upper_angle = 0.34906584
+angular_limit_y/lower_angle = -0.34906584
+angular_limit_z/upper_angle = 0.5235988
 angular_limit_z/lower_angle = -0.17453292
-angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 1.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
-angular_spring_y/damping = 1.0
+angular_spring_y/stiffness = 20.0
+angular_spring_y/damping = 4.0
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 1.0
+angular_spring_z/stiffness = 100.0
+angular_spring_z/damping = 4.0
 
 [node name="Physical Bone LeftUpperArm" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-9.298126e-06, 0.017123548, -0.99985343, -1, 2.5079647e-05, 9.729006e-06, 2.5242563e-05, 0.99985343, 0.017123548, 0.329085, 1.5241321, -0.07228777)
+transform = Transform3D(-9.298126e-06, 0.017123548, -0.99985343, -1, 2.5079647e-05, 9.729006e-06, 2.5242563e-05, 0.99985343, 0.017123548, 0.329085, 1.5241321, -0.07228776)
 visible = false
 collision_layer = 2
 collision_mask = 257
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.3413875e-05, -1.45650565e-05, 0.13720493)
-body_offset = Transform3D(-2.5160607e-05, -0.99985343, -0.017123638, -9.3875315e-06, 0.017123638, -0.99985343, 1, -2.4996172e-05, -9.816997e-06, 0.0023348853, 0.13718507, -3.20673e-05)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.3413875e-05, -1.4572507e-05, 0.13720493)
+body_offset = Transform3D(-2.5160607e-05, -0.99985343, -0.017123638, -9.3875315e-06, 0.017123638, -0.99985343, 1, -2.4996172e-05, -9.816997e-06, 0.0023348778, 0.13718507, -3.20673e-05)
 mass = 2.44
 bone_name = "LeftUpperArm"
 
@@ -18856,13 +18858,13 @@ angular_spring_z/stiffness = 0.001
 angular_spring_z/damping = 1.0
 
 [node name="Physical Bone LeftLowerArm" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-1.2023709e-06, 0.017466731, -0.9998475, 1, 8.33458e-06, -1.0569543e-06, 8.314847e-06, -0.9998475, -0.017466731, 0.6026144, 1.524136, -0.07230706)
+transform = Transform3D(-1.202371e-06, 0.017466731, -0.9998475, 1, 8.33458e-06, -1.0569544e-06, 8.314847e-06, -0.9998475, -0.017466731, 0.6026144, 1.524136, -0.07230705)
 visible = false
 collision_layer = 2
 collision_mask = 257
-joint_offset = Transform3D(-4.371134e-08, 0, -0.9999964, 0, 0.99999744, 0, 0.99999887, 0, -4.3711232e-08, -3.5771398e-05, -3.554579e-05, 0.13633464)
+joint_offset = Transform3D(-4.371134e-08, 0, -0.9999964, 0, 0.99999744, 0, 0.99999887, 0, -4.3711232e-08, -3.5771398e-05, -3.5538338e-05, 0.13633464)
 joint_rotation = Vector3(0, -1.5707964, 0)
-body_offset = Transform3D(-1.0000004, -8.8891275e-06, 8.08812e-07, -9.639531e-07, 0.01746682, -0.9998475, 8.873643e-06, -0.9998478, -0.017466826, -3.5881996e-05, 0.13631445, 0.002345793)
+body_offset = Transform3D(-1.0000004, -8.8891275e-06, 8.088121e-07, -9.639532e-07, 0.01746682, -0.9998475, 8.873643e-06, -0.9998478, -0.017466826, -3.5881996e-05, 0.13631445, 0.0023458004)
 mass = 1.4
 bone_name = "LeftLowerArm"
 
@@ -18876,15 +18878,9 @@ visible = false
 node_a = NodePath("../../Physical Bone LeftUpperArm")
 node_b = NodePath("..")
 angular_limit_y/upper_angle = 2.0943952
-angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 1.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
+angular_spring_y/stiffness = 0.01
 angular_spring_y/damping = 1.0
-angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 1.0
 
 [node name="Physical Bone LeftHand" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
 transform = Transform3D(5.204698e-05, 0.2500554, -0.96823156, 0.99790883, 0.06257145, 0.01621334, 0.064637884, -0.9662076, -0.24952923, 0.79884744, 1.5231278, -0.055897556)
@@ -18906,25 +18902,27 @@ transform = Transform3D(5.2046955e-05, 0.9979087, 0.06463788, 0.25005537, 0.0625
 visible = false
 node_a = NodePath("../../Physical Bone LeftLowerArm")
 node_b = NodePath("..")
-angular_limit_x/upper_angle = 0.5235988
-angular_limit_x/lower_angle = -0.5235988
-angular_limit_z/upper_angle = 0.5235988
-angular_limit_z/lower_angle = -0.5235988
+angular_limit_x/upper_angle = 0.9599311
+angular_limit_x/lower_angle = -0.2617994
+angular_limit_y/upper_angle = 0.5235988
+angular_limit_y/lower_angle = -0.5235988
+angular_limit_z/upper_angle = 0.87266463
+angular_limit_z/lower_angle = -0.87266463
 angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 1.0
+angular_spring_x/stiffness = 0.01
+angular_spring_x/damping = 0.2
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
-angular_spring_y/damping = 1.0
+angular_spring_y/stiffness = 0.01
+angular_spring_y/damping = 0.2
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 1.0
+angular_spring_z/stiffness = 0.01
+angular_spring_z/damping = 0.2
 
 [node name="Physical Bone RightShoulder" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(2.9572297e-08, -0.622966, 0.78224903, 0.99227786, 0.097026534, 0.07726977, -0.12403534, 0.77620834, 0.6181553, -0.105350316, 1.5326501, -0.001563184)
+transform = Transform3D(2.9572297e-08, -0.62296593, 0.78224903, 0.99227786, 0.09702653, 0.07726977, -0.12403534, 0.7762083, 0.6181553, -0.105350316, 1.5326501, -0.0015631914)
 visible = false
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.270324e-06, 1.2370932e-05, 0.11065279)
-body_offset = Transform3D(0.1240352, -0.77620846, -0.6181552, 0, 0.6229658, -0.7822491, 0.99227786, 0.097026415, 0.07726969, 0.06841036, 0.08655033, -0.008550048)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2712553e-06, 1.2389559e-05, 0.11065279)
+body_offset = Transform3D(0.1240352, -0.7762085, -0.6181551, 0, 0.6229658, -0.78224915, 0.99227786, 0.09702642, 0.07726968, 0.06841037, 0.08655033, -0.008550048)
 mass = 2.81
 bone_name = "RightShoulder"
 
@@ -18938,21 +18936,16 @@ transform = Transform3D(-0.07704424, 0.9922777, -0.09720568, -0.0060747564, 0.09
 visible = false
 node_a = NodePath("../../Physical Bone UpperChest")
 node_b = NodePath("..")
-angular_limit_x/upper_angle = 0.17453292
-angular_limit_x/lower_angle = -0.17453292
-angular_limit_y/upper_angle = 0.17453292
-angular_limit_y/lower_angle = -0.17453292
-angular_limit_z/upper_angle = 0.17453292
+angular_limit_y/upper_angle = 0.34906584
+angular_limit_y/lower_angle = -0.34906584
+angular_limit_z/upper_angle = 0.5235988
 angular_limit_z/lower_angle = -0.17453292
-angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 1.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
-angular_spring_y/damping = 1.0
+angular_spring_y/stiffness = 20.0
+angular_spring_y/damping = 4.0
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 1.0
+angular_spring_z/stiffness = 100.0
+angular_spring_z/damping = 4.0
 
 [node name="Physical Bone RightUpperArm" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
 transform = Transform3D(-8.434061e-06, -0.017129084, 0.9998533, 1, 1.921675e-05, 8.764512e-06, -1.9364059e-05, 0.9998533, 0.017129084, -0.32909882, 1.5240896, -0.070454605)
@@ -18980,23 +18973,23 @@ angular_limit_y/lower_angle = -2.0943952
 angular_limit_z/upper_angle = 1.7453293
 angular_limit_z/lower_angle = -1.5707964
 angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 1.0
+angular_spring_x/stiffness = 0.01
+angular_spring_x/damping = 5.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
-angular_spring_y/damping = 1.0
+angular_spring_y/stiffness = 0.01
+angular_spring_y/damping = 3.0
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 1.0
+angular_spring_z/stiffness = 0.01
+angular_spring_z/damping = 3.0
 
 [node name="Physical Bone RightLowerArm" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-8.799106e-06, -0.017446036, 0.9998478, -1, 9.480219e-06, -8.635028e-06, -9.328129e-06, -0.9998478, -0.017446036, -0.6026218, 1.4944825, -0.07213537)
+transform = Transform3D(-8.799107e-06, -0.017446037, 0.9998478, -1, 9.48022e-06, -8.635029e-06, -9.328129e-06, -0.9998478, -0.017446037, -0.6026218, 1.4944825, -0.072135374)
 visible = false
 collision_layer = 2
 collision_mask = 257
-joint_offset = Transform3D(-4.371139e-08, 0, 0.9999984, 0, 0.9999984, 0, -1, 0, -4.3711317e-08, -0.029618667, 0.00013911654, 0.13634478)
+joint_offset = Transform3D(-4.371139e-08, 0, 0.9999984, 0, 0.9999984, 0, -1, 0, -4.3711317e-08, -0.029618667, 0.00013910886, 0.13634478)
 joint_rotation = Vector3(0, 1.5707964, 0)
-body_offset = Transform3D(-1.0000002, 1.0032691e-05, -8.267707e-06, 8.441479e-06, 0.017446183, -0.9998478, -9.886923e-06, -0.99984807, -0.017446186, -0.029617548, 0.13632184, 0.002517499)
+body_offset = Transform3D(-1.0000002, 1.0032691e-05, -8.267708e-06, 8.44148e-06, 0.017446185, -0.9998478, -9.886923e-06, -0.99984807, -0.017446188, -0.029617548, 0.13632184, 0.0025174916)
 mass = 1.4
 bone_name = "RightLowerArm"
 
@@ -19010,22 +19003,16 @@ visible = false
 node_a = NodePath("../../Physical Bone RightUpperArm")
 node_b = NodePath("..")
 angular_limit_y/lower_angle = -2.0943952
-angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 1.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
+angular_spring_y/stiffness = 0.01
 angular_spring_y/damping = 1.0
-angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 1.0
 
 [node name="Physical Bone RightHand" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(7.420778e-06, -0.25324324, 0.9674027, -0.9979132, 0.06246321, 0.016359052, -0.06456989, -0.965384, -0.2527143, -0.79889, 1.5527229, -0.054051526)
+transform = Transform3D(7.4207787e-06, -0.25324327, 0.9674027, -0.9979132, 0.062463205, 0.016359054, -0.06456989, -0.96538395, -0.25271434, -0.79889, 1.5527229, -0.054051526)
 visible = false
 collision_layer = 2
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.029590357, -0.0016290613, 0.061584756)
-body_offset = Transform3D(-0.06456939, -0.9653842, -0.2527146, -8.177136e-06, 0.2532435, -0.96740264, 0.9979135, -0.06246253, -0.016359672, 0.01590133, 0.05999005, -0.028622866)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.029590357, -0.0016290632, 0.061584756)
+body_offset = Transform3D(-0.06456939, -0.9653842, -0.25271463, -8.177137e-06, 0.25324354, -0.96740264, 0.9979135, -0.06246253, -0.016359674, 0.01590133, 0.05999005, -0.028622866)
 mass = 0.49
 bone_name = "RightHand"
 
@@ -19038,21 +19025,21 @@ transform = Transform3D(7.42264e-06, -0.9979131, -0.06456989, -0.2532427, 0.0624
 visible = false
 node_a = NodePath("../../Physical Bone RightLowerArm")
 node_b = NodePath("..")
-angular_limit_x/upper_angle = 0.5235988
-angular_limit_x/lower_angle = -0.5235988
+angular_limit_x/upper_angle = 0.9599311
+angular_limit_x/lower_angle = -0.2617994
 angular_limit_y/upper_angle = 0.5235988
 angular_limit_y/lower_angle = -0.5235988
-angular_limit_z/upper_angle = 0.5235988
-angular_limit_z/lower_angle = -0.5235988
+angular_limit_z/upper_angle = 0.87266463
+angular_limit_z/lower_angle = -0.87266463
 angular_spring_x/enabled = true
-angular_spring_x/stiffness = 0.001
-angular_spring_x/damping = 1.0
+angular_spring_x/stiffness = 0.01
+angular_spring_x/damping = 0.2
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 0.001
-angular_spring_y/damping = 1.0
+angular_spring_y/stiffness = 0.01
+angular_spring_y/damping = 0.2
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 0.001
-angular_spring_z/damping = 1.0
+angular_spring_z/stiffness = 0.01
+angular_spring_z/damping = 0.2
 
 [node name="Physical Bone LeftUpperLeg" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
 transform = Transform3D(-1, -2.6717223e-06, -4.9677073e-08, -3.102034e-08, -0.0069825836, 0.9999756, -2.672004e-06, 0.9999756, 0.0069825836, 0.08899987, 0.81525266, -0.0045504607)
@@ -19073,26 +19060,29 @@ transform = Transform3D(-1, -5.0932513e-08, -2.671699e-06, -2.6717225e-06, 0.000
 node_a = NodePath("../../Physical Bone Hips")
 node_b = NodePath("..")
 angular_limit_x/upper_angle = 2.0943952
-angular_limit_x/lower_angle = -1.0471976
+angular_limit_x/lower_angle = -0.5235988
 angular_limit_y/upper_angle = 1.3089969
 angular_limit_y/lower_angle = -1.3089969
 angular_limit_z/upper_angle = 1.3089969
 angular_limit_z/lower_angle = -0.34906584
+angular_spring_x/enabled = true
 angular_spring_x/stiffness = 0.01
-angular_spring_x/damping = 5.0
+angular_spring_x/damping = 8.0
+angular_spring_y/enabled = true
 angular_spring_y/stiffness = 0.01
-angular_spring_y/damping = 5.0
+angular_spring_y/damping = 8.0
+angular_spring_z/enabled = true
 angular_spring_z/stiffness = 0.01
-angular_spring_z/damping = 5.0
+angular_spring_z/damping = 8.0
 
 [node name="Physical Bone LeftLowerLeg" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-1, 2.1878863e-07, 2.1318993e-08, 3.725373e-09, -0.08010068, 0.9967868, 2.1979328e-07, 0.9967868, 0.08010068, 0.08900058, 0.40104482, -0.023218974)
+transform = Transform3D(-1, 2.1878863e-07, 2.1318993e-08, 3.725373e-09, -0.08010068, 0.9967868, 2.1979328e-07, 0.9967868, 0.08010068, 0.08900058, 0.4010448, -0.023218974)
 visible = false
 collision_layer = 2
 collision_mask = 259
-joint_offset = Transform3D(-4.371136e-08, 0, 0.99999934, 0, 1, 0, -0.99999934, 0, -4.371136e-08, 5.7614596e-07, 6.66976e-05, 0.21475065)
+joint_offset = Transform3D(-4.371136e-08, 0, 0.99999934, 0, 1, 0, -0.99999934, 0, -4.371136e-08, 5.7614596e-07, 6.669387e-05, 0.21475068)
 joint_rotation = Vector3(0, 1.5707964, 0)
-body_offset = Transform3D(-1, 2.1831971e-07, 1.1346629e-08, 6.1766383e-09, 0.08009726, -0.9967871, -2.1852709e-07, -0.9967871, -0.08009726, 5.736947e-07, 0.21405533, 0.01726742)
+body_offset = Transform3D(-1, 2.1831971e-07, 1.1346629e-08, 6.1766383e-09, 0.08009726, -0.9967871, -2.1852709e-07, -0.9967871, -0.08009726, 5.736947e-07, 0.21405536, 0.01726742)
 mass = 3.56
 bone_name = "LeftLowerLeg"
 
@@ -19106,20 +19096,22 @@ visible = false
 node_a = NodePath("../../Physical Bone LeftUpperLeg")
 node_b = NodePath("..")
 angular_limit_x/lower_angle = -2.0943952
+angular_spring_x/enabled = true
+angular_spring_x/stiffness = 0.01
+angular_spring_x/damping = 2.0
 
 [node name="Physical Bone LeftFoot" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-1, -2.995146e-08, -1.8873154e-08, -3.5389526e-08, 0.85977584, 0.5106716, 9.3131886e-10, 0.5106716, -0.8597759, 0.08900082, 0.14329092, 0.034147613)
-visible = false
+transform = Transform3D(-1, -2.995146e-08, -1.8873154e-08, -3.5389526e-08, 0.85977584, 0.5106716, 9.3131886e-10, 0.5106716, -0.8597759, 0.08900082, 0.1432909, 0.034147613)
 collision_layer = 2
 collision_mask = 259
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.2540424e-07, -0.00046471134, 0.08637422)
-body_offset = Transform3D(1, 3.0953892e-08, 1.880827e-08, 3.636082e-10, 0.5106721, -0.859776, -3.621827e-08, 0.859776, 0.51067203, -8.2701445e-07, 0.0744998, -0.043709353)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.2540424e-07, -0.00046469644, 0.08637424)
+body_offset = Transform3D(1, 3.0953892e-08, 1.880827e-08, 3.636082e-10, 0.5106721, -0.859776, -3.621827e-08, 0.859776, 0.51067203, -8.2701445e-07, 0.0744998, -0.043709368)
 mass = 1.05
 bone_name = "LeftFoot"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone LeftFoot"]
-transform = Transform3D(1, -2.0746493e-08, -6.3637007e-09, 1.5572038e-08, 0.48179945, 0.8762812, -1.5113717e-08, -0.8762813, 0.48179936, 0, -0.009599835, -0.030713454)
-shape = SubResource("CylinderShape3D_wbia7")
+transform = Transform3D(1, -1.591055e-08, -5.7388814e-09, 1.10383e-08, 0.3568196, 0.93417317, -1.2815452e-08, -0.9341735, 0.3568194, -0.0064400733, -0.014626861, -0.022249844)
+shape = SubResource("CapsuleShape3D_ejsiy")
 
 [node name="LeftAnkle Joint" type="Generic6DOFJoint3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone LeftFoot"]
 transform = Transform3D(-1, -2.99256e-08, 1.8914132e-08, -2.9951458e-08, 0.9999991, -0.0013687611, -1.8873155e-08, -0.0013687313, -0.99999905, 8.2701445e-07, -0.00028529763, 0.08607118)
@@ -19130,6 +19122,12 @@ angular_limit_x/upper_angle = 0.43633232
 angular_limit_x/lower_angle = -1.3962634
 angular_limit_y/upper_angle = 0.5235988
 angular_limit_y/lower_angle = -0.5235988
+angular_spring_x/enabled = true
+angular_spring_x/stiffness = 0.001
+angular_spring_x/damping = 0.2
+angular_spring_y/enabled = true
+angular_spring_y/stiffness = 0.001
+angular_spring_y/damping = 0.2
 
 [node name="Physical Bone RightUpperLeg" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
 transform = Transform3D(-1, 7.4711456e-06, -1.847246e-06, -1.8994426e-06, -0.0069924966, 0.9999756, 7.4580457e-06, 0.9999756, 0.0069924966, -0.08899325, 0.8152391, -0.0045564813)
@@ -19157,23 +19155,23 @@ angular_limit_y/lower_angle = -1.3089969
 angular_limit_z/upper_angle = 0.34906584
 angular_limit_z/lower_angle = -1.3089969
 angular_spring_x/enabled = true
-angular_spring_x/stiffness = 50.0
-angular_spring_x/damping = 5.0
+angular_spring_x/stiffness = 0.01
+angular_spring_x/damping = 8.0
 angular_spring_y/enabled = true
-angular_spring_y/stiffness = 50.0
-angular_spring_y/damping = 5.0
+angular_spring_y/stiffness = 0.01
+angular_spring_y/damping = 8.0
 angular_spring_z/enabled = true
-angular_spring_z/stiffness = 50.0
-angular_spring_z/damping = 5.0
+angular_spring_z/stiffness = 0.01
+angular_spring_z/damping = 8.0
 
 [node name="Physical Bone RightLowerLeg" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-1, 9.192337e-06, 2.1111468e-06, 1.3681228e-06, -0.080093, 0.9967874, 9.331893e-06, 0.9967874, 0.080093, -0.0908962, 0.40101975, -0.023618128)
+transform = Transform3D(-1, 9.192337e-06, 2.1111468e-06, 1.3681228e-06, -0.080093, 0.9967874, 9.331893e-06, 0.9967874, 0.080093, -0.090896204, 0.40101972, -0.023618128)
 visible = false
 collision_layer = 2
 collision_mask = 259
-joint_offset = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -0.0018957356, 0.0004642345, 0.2148076)
+joint_offset = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -0.0018957431, 0.00046423078, 0.21480763)
 joint_rotation = Vector3(0, 1.5707964, 0)
-body_offset = Transform3D(-1, 9.191283e-06, 2.1191304e-06, -1.376197e-06, 0.08008958, -0.9967877, -9.3314775e-06, -0.9967877, -0.08008958, -0.0018961951, 0.2140804, 0.017666575)
+body_offset = Transform3D(-1, 9.191283e-06, 2.1191304e-06, -1.376197e-06, 0.08008958, -0.9967877, -9.3314775e-06, -0.9967877, -0.08008958, -0.0018962026, 0.21408042, 0.017666575)
 mass = 3.56
 bone_name = "RightLowerLeg"
 
@@ -19187,20 +19185,22 @@ visible = false
 node_a = NodePath("../../Physical Bone RightUpperLeg")
 node_b = NodePath("..")
 angular_limit_x/lower_angle = -2.0943952
+angular_spring_x/enabled = true
+angular_spring_x/stiffness = 0.01
+angular_spring_x/damping = 2.0
 
 [node name="Physical Bone RightFoot" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
-transform = Transform3D(-1, 5.7233984e-07, -2.4071692e-06, -7.3759537e-07, 0.859688, 0.51081955, 2.3617765e-06, 0.51081955, -0.859688, -0.08900446, 0.14605938, 0.03415342)
-visible = false
+transform = Transform3D(-1, 5.7233984e-07, -2.4071692e-06, -7.375953e-07, 0.859688, 0.51081955, 2.3617765e-06, 0.51081955, -0.859688, -0.08900446, 0.14605938, 0.03415342)
 collision_layer = 2
 collision_mask = 259
 joint_offset = Transform3D(0.99999714, 0, 0, 0, 0.99999875, 0, 0, 0, 0.99999523, -4.6690543e-06, -0.0028624944, 0.08496498)
-body_offset = Transform3D(1, -5.7138914e-07, 2.4071207e-06, 2.36125e-06, 0.51082003, -0.8596881, -7.383888e-07, 0.85968816, 0.51082, 4.462898e-06, 0.0745056, -0.040940955)
+body_offset = Transform3D(1, -5.7138925e-07, 2.4071207e-06, 2.36125e-06, 0.51082003, -0.8596881, -7.3838874e-07, 0.85968816, 0.51082, 4.462898e-06, 0.0745056, -0.040940955)
 mass = 1.05
 bone_name = "RightFoot"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone RightFoot"]
-transform = Transform3D(1, 1.6997183e-07, -5.727743e-07, 4.227761e-07, 0.47608456, 0.87939924, 4.2216152e-07, -0.8793992, 0.47608465, 2.2351742e-08, -0.012531191, -0.033297904)
-shape = SubResource("CylinderShape3D_rtvxd")
+transform = Transform3D(1, 2.2593122e-07, -3.0759603e-07, 1.9970605e-07, 0.37704876, 0.92619336, 3.252344e-07, -0.92619336, 0.37704876, 0.0058675036, -0.016568631, -0.02650312)
+shape = SubResource("CapsuleShape3D_2mse5")
 
 [node name="RightAnkle Joint" type="Generic6DOFJoint3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone RightFoot"]
 transform = Transform3D(-1, 5.7576517e-07, 2.406353e-06, 5.723393e-07, 0.99999917, -0.0014236271, -2.4071696e-06, -0.0014236271, -0.99999917, -4.671514e-06, -0.0026828945, 0.08466206)
@@ -19210,6 +19210,12 @@ angular_limit_x/upper_angle = 0.43633232
 angular_limit_x/lower_angle = -1.3962634
 angular_limit_y/upper_angle = 0.5235988
 angular_limit_y/lower_angle = -0.5235988
+angular_spring_x/enabled = true
+angular_spring_x/stiffness = 0.001
+angular_spring_x/damping = 0.2
+angular_spring_y/enabled = true
+angular_spring_y/stiffness = 0.001
+angular_spring_y/damping = 0.2
 
 [node name="Right Hand IK" type="SkeletonIK3D" parent="Imported Character/Rig/GeneralSkeleton"]
 root_bone = &"RightShoulder"
