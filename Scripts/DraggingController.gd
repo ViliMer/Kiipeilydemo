@@ -73,22 +73,15 @@ func update_ragdoll(delta: float) -> void:
 	
 	var target  := ray_origin + ray_dir * target_distance
 	
-	# ======================================================================
-	# NEW: Physically drag the bone using a critically-damped spring force
-	# ======================================================================
-	
-	# ------- Position of the grabbed point on the bone -------
+	# Physically drag the bone using a damped spring force
 	var grabbed_world_point := dragged_body.to_global(grab_point_local)
 
-	# ------- Linear spring behavior (no angular component) -------
+	#Linear spring
 	var stiffness := 50.0         # how strongly it pulls toward the cursor
-	var damping := 25.0            # reduces overshoot
+	var damping := 25.0           # reduces overshoot
 	var strength := 1.0           # global multiplier for drag "power"
 
-	# Current velocity of the whole bone
 	var current_vel := dragged_body.linear_velocity
-
-	# Desired velocity for the grabbed point
 	var displacement := target - grabbed_world_point
 	var desired_vel := displacement * stiffness
 
@@ -98,7 +91,18 @@ func update_ragdoll(delta: float) -> void:
 	# Apply correction to the whole bone (no angular effect)
 	dragged_body.linear_velocity += correction_vel
 
-	# Optional: clamp for stability
+	# clamp for stability
 	var max_speed := 25.0
 	if dragged_body.linear_velocity.length() > max_speed:
 		dragged_body.linear_velocity = dragged_body.linear_velocity.normalized() * max_speed
+	
+	# Abgular velocity damping
+	damp_all_bones_angular_velocity(delta)
+
+
+func damp_all_bones_angular_velocity(delta: float) -> void:
+	var angular_damping := 20.0
+
+	for bone in character.bone_sim.get_children():
+		if bone is PhysicalBone3D:
+			bone.angular_velocity -= bone.angular_velocity * angular_damping * delta
