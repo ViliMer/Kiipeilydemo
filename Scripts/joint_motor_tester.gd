@@ -146,7 +146,7 @@ func save_joint_angles(joint_names: Array[String]) -> Dictionary:
 		var Ba: Basis = node_a.global_basis
 		var Bb: Basis = node_b.global_basis
 		
-		# In fixed joint space:
+		# In joint space:
 		var rel_basis = B_joint.inverse() * (Ba.inverse() * Bb) * B_joint
 
 		var q : Quaternion = rel_basis.get_rotation_quaternion().normalized()

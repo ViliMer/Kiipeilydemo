@@ -18609,12 +18609,6 @@ bone_name = "Hips"
 transform = Transform3D(-4.3711392e-08, 0.9999998, 0, 4.4703484e-08, 1.7763568e-15, 1, 1.0000001, 4.371138e-08, -4.4703484e-08, 0, -0.024, 0)
 shape = SubResource("CapsuleShape3D_ushfy")
 
-[node name="Root Joint" type="Generic6DOFJoint3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D/Physical Bone Hips"]
-transform = Transform3D(-1, 2.5753743e-06, 8.822396e-06, -8.834819e-06, -0.004864514, -0.9999882, -2.532427e-06, -0.9999882, 0.004864514, 1.2717765e-06, 0.00028668344, 0.061680794)
-visible = false
-node_a = NodePath("../../Physical Bone Root")
-node_b = NodePath("..")
-
 [node name="Physical Bone Spine" type="PhysicalBone3D" parent="Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"]
 transform = Transform3D(-1, -8.834819e-06, -2.532427e-06, 1.4306329e-06, 0.12254983, -0.9924624, 9.078573e-06, -0.9924624, -0.12254983, 1.4305115e-06, 1.1953516, -0.012553944)
 collision_layer = 2
