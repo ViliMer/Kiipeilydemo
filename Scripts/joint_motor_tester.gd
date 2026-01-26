@@ -115,14 +115,14 @@ func disable():
 	visible = false
 	
 
-func update_motor_test(delta: float):
+func update_motor_test(_delta: float):
 	match state:
 		JointMotorTesterState.DISABLED:
 			pass
 		JointMotorTesterState.DRIVE_TORQUE_MOTORS_TO_POSE:
 			update_velocity_torque_motors(saved_joint_angles)
 		JointMotorTesterState.DRIVE_VELOCITY_MOTORS_TO_POSE:
-			update_velocity_motors(saved_joint_angles, delta)
+			update_velocity_motors(saved_joint_angles)
 		JointMotorTesterState.APPLY_TORQUE:
 			apply_torque(torque_to_be_applied * torque_multiplier, free_joints)
 		JointMotorTesterState.APPLY_VELOCITY:
@@ -257,10 +257,10 @@ func get_PD_data(joint: Generic6DOFJoint3D, target: Dictionary) -> Dictionary:
 	joint_error_integrals[joint.name] = error_integral
 '''
 
-var JOINT_CONSTANTS = {
-	"Spine Joint":			{ "max_torque": 200.0, "Kd": Vector3(5.0, 5.0, 5.0), "omega_max": Vector3(5.0, 5.0, 5.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
-	"LowerChest Joint":		{ "max_torque": 120.0, "Kd": Vector3(4.0, 4.0, 4.0), "omega_max": Vector3(5.0, 5.0, 5.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
-	"Chest Joint":			{ "max_torque": 120.0, "Kd": Vector3(3.0, 3.0, 3.0), "omega_max": Vector3(5.0, 5.0, 5.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
+var JOINT_CONSTANTS = {																		#Vector3(5.0, 5.0, 5.0)
+	"Spine Joint":			{ "max_torque": 200.0, "Kd": Vector3(5.0, 5.0, 5.0), "omega_max": Vector3(1.0, 1.0, 1.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
+	"LowerChest Joint":		{ "max_torque": 120.0, "Kd": Vector3(4.0, 4.0, 4.0), "omega_max": Vector3(1.0, 1.0, 1.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
+	"Chest Joint":			{ "max_torque": 120.0, "Kd": Vector3(3.0, 3.0, 3.0), "omega_max": Vector3(1.0, 1.0, 1.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
 	"LeftUpperChest Joint":	{ "max_torque": 120.0, "Kd": Vector3(0.0, 2.5, 3.5), "omega_max": Vector3(0.0, 10.0, 10.0), "error_scale": Vector3(1.0, 0.25, 0.25) }, # x = twist, y = fwd/back, z = up/down
 	"LeftShoulder Joint":	{ "max_torque": 80.0, "Kd": Vector3(0.5, 2.0, 2.0), "omega_max": Vector3(5.0, 12.0, 12.0), "error_scale": Vector3(0.5, 0.25, 0.25) }, # x = twist, y = forward / back, z = lateral raise
 	"LeftElbow Joint":		{ "max_torque": 60.0, "Kd": Vector3(0.0, 1.0, 0.0), "omega_max": Vector3(0.0, 12.0, 0.0), "error_scale": Vector3(1.0, 0.25, 1.0) },
@@ -383,12 +383,9 @@ func update_torque_motors(target: Dictionary, _delta: float) -> void:
 		node_b.external_torque += target_torque
 
 
-func update_velocity_motors(target: Dictionary, _delta: float, strength := 1.0) -> void:
+func update_velocity_motors(target: Dictionary) -> void:
 	if joints == null or target == null:
 		return
-
-	var Kp := 1.0 * strength	# proportional gain
-	var Kd := 0.0 * strength	# derivative gain
 
 	for joint in joints:
 
@@ -396,25 +393,41 @@ func update_velocity_motors(target: Dictionary, _delta: float, strength := 1.0) 
 		if not target.has(joint_name):
 			continue
 		
+		var B_joint: Basis = joint.global_basis
+		
+
 		var res = get_PD_data(joint, target)
 		var error_vec = res["error_vec"]
-		var angular_velocity = res["angular_velocity"]
 		
-		# ---- PD CONTROL ----
-		var target_vel = (error_vec * Kp) - (angular_velocity * Kd)
-
-		var vel_world = joint.global_transform.basis * target_vel * -1
+		# ---- GRAVITY (World Frame) ----
+		var error_joint = B_joint.inverse() * error_vec
 		
-		DebugDraw3D.draw_arrow(
-			joint.global_transform.origin,
-			joint.global_transform.origin + vel_world,
-			Color.BLUE,
-			0.01
+		var omega_max = JOINT_CONSTANTS[joint_name].omega_max
+		var error_scale = JOINT_CONSTANTS[joint_name].error_scale
+		var omega_target_joint := Vector3(
+			omega_max.x * tanh(error_joint.x / error_scale.x),
+			omega_max.y * tanh(error_joint.y / error_scale.y),
+			omega_max.z * tanh(error_joint.z / error_scale.z)
 		)
 		
-		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, vel_world.x)
-		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, vel_world.y)
-		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, vel_world.z)
+		# Deadzone might prevent micro-jitter:
+		if abs(error_joint.x) < 0.01:
+			omega_target_joint.x = 0.0
+		if abs(error_joint.y) < 0.01:
+			omega_target_joint.y = 0.0
+		if abs(error_joint.z) < 0.01:
+			omega_target_joint.z = 0.0
+		
+		omega_target_joint *= -0.1
+		
+		var vel_world = joint.global_transform.basis * omega_target_joint
+		
+		DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + error_vec,Color.YELLOW,0.01)
+		
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.x)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.y)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.z)
 
 func restore_node(node_name: String) -> void: # This doesn't actually work. Would need to figure out the right position as well.
 	if stored_nodes.has(node_name):
@@ -422,22 +435,23 @@ func restore_node(node_name: String) -> void: # This doesn't actually work. Woul
 		data.parent.add_child(data.node)
 		stored_nodes.erase(node_name)
 
-func enable_velocity_motors(joint_names: Array[String], strength := 1.0) -> void:
+func enable_velocity_motors(joint_names: Array[String]) -> void:
 	if joints == null:
 		return
-
-	var max_force := 10.0 * strength
 	
 	for joint in joints:
 		if joint.name not in joint_names:
 			continue
+		
+		var max_torque = JOINT_CONSTANTS[joint.name].max_torque * 2
+		
 		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
 		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
 		joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
 
-		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_force)
-		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_force)
-		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_force)
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
 
 func disable_velocity_motors(joint_names: Array[String]) -> void:
 
