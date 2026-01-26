@@ -77,7 +77,6 @@ func save_joint_params() -> void:
 
 # This function applies joint angular spring stiffness and damping for all joints
 func apply_joint_params(joint_params: Dictionary) -> void:
-	print(joint_params)
 	for joint in joints:
 		var stiffness = joint_params[joint.name].stiffness
 		var damping = joint_params[joint.name].damping
@@ -155,8 +154,9 @@ func update_climbing(_delta: float) -> void:
 		var body_pos = get_bone_world_pos("Hips")
 		var direction = (body_pos - target).normalized()
 		apply_force(hip_bone, direction, right_foot_force)
+	'''
 	
-	reach()'''
+	reach_for_holds()
 	
 	if run_joint_motors:
 		#update_joint_torque_motors(saved_joint_angles)
@@ -291,56 +291,103 @@ func _remove_limb_locks() -> void:
 	for limb in limbs:
 		release_limb(limb)
 
-'''
-func reach() -> void:
-	var hand_reach_force = 100.0
-	var foot_reach_force = 100.0
+
+func reach_for_holds() -> void:
+	# This implementation assumes there is 0 or 1 reaching limbs, fix later
+	var end_effector_pos = Vector3.ZERO
+	var target_pos = Vector3.ZERO
+	
+	var end_effector_rot = Quaternion.IDENTITY
+	var target_rot = Quaternion.IDENTITY
 	
 	if reaching_left_hand and not attached_holds["lh"]:
-		var left_hand = character.bone_sim.find_child("Physical Bone LeftHand")
-		var dir = (left_hand_target.global_position - get_bone_world_pos("LeftHand"))
-		apply_force(left_hand, dir, hand_reach_force)
+		end_effector_pos = get_bone_world_transform("LeftHand").origin
+		target_pos = left_hand_target.global_position
+		
+		end_effector_rot = get_bone_world_transform("LeftHand").basis.get_rotation_quaternion()
+		target_rot = left_hand_target.global_basis.get_rotation_quaternion()
 	
 	if reaching_right_hand and not attached_holds["rh"]:
-		var right_hand = character.bone_sim.find_child("Physical Bone RightHand")
-		var dir = (right_hand_target.global_position - get_bone_world_pos("RightHand"))
-		apply_force(right_hand, dir, hand_reach_force)
+		end_effector_pos = get_bone_world_transform("RightHand").origin
+		target_pos = right_hand_target.global_position
+		
+		end_effector_rot = get_bone_world_transform("RightHand").basis.get_rotation_quaternion()
+		target_rot = right_hand_target.global_basis.get_rotation_quaternion()
 	
 	if reaching_left_foot and not attached_holds["lf"]:
-		var left_foot = character.bone_sim.find_child("Physical Bone LeftFoot")
-		var dir = (left_foot_target.global_position - get_bone_world_pos("LeftFoot"))
-		apply_force(left_foot, dir, foot_reach_force)
+		end_effector_pos = get_bone_world_transform("LeftFoot").origin
+		target_pos = left_foot_target.global_position
+		
+		end_effector_rot = get_bone_world_transform("LeftFoot").basis.get_rotation_quaternion()
+		target_rot = left_foot_target.global_basis.get_rotation_quaternion()
 	
 	if reaching_right_foot and not attached_holds["rf"]:
-		var right_foot = character.bone_sim.find_child("Physical Bone RightFoot")
-		var dir = (right_foot_target.global_position - get_bone_world_pos("RightFoot"))
-		apply_force(right_foot, dir, foot_reach_force)
-'''
+		end_effector_pos = get_bone_world_transform("RightFoot").origin
+		target_pos = right_foot_target.global_position
+		
+		end_effector_rot = get_bone_world_transform("RightFoot").basis.get_rotation_quaternion()
+		target_rot = right_foot_target.global_basis.get_rotation_quaternion()
+	
+	var reaching_joints = get_reaching_joints()
+	
+	var target_vel = compute_desired_end_effector_velocity(end_effector_pos, target_pos)
+	var position_jacobian = compute_position_jacobian(reaching_joints, end_effector_pos)
+	var pos_IK_velocities = compute_position_joint_velocities(position_jacobian, target_vel)
+	
+	var target_angular_vel = compute_desired_end_effector_angular_velocity(end_effector_rot, target_rot)
+	var rotation_jacobian = compute_rotation_jacobian(reaching_joints)
+	var rot_IK_velocities = compute_rotation_joint_velocities(rotation_jacobian, target_angular_vel)
+	
+	for joint in reaching_joints:
+		var omega_target_joint = -pos_IK_velocities[joint.name] - rot_IK_velocities[joint.name] * 0.2
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.x)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.y)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.z)
+
+
+func get_reaching_joints() -> Array[Generic6DOFJoint3D]:
+	var reaching_joint_names = []
+	var reaching_joints: Array[Generic6DOFJoint3D] = []
+	
+	if reaching_left_hand:
+		reaching_joint_names.append_array(["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint"])
+	if reaching_right_hand:
+		reaching_joint_names.append_array(["RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"])
+	if reaching_left_foot:
+		reaching_joint_names.append_array(["LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"])
+	if reaching_right_foot:
+		reaching_joint_names.append_array(["RighttHip Joint", "RightKnee Joint", "RightAnkle Joint"])
+	
+	for joint in joints:
+		if joint.name in reaching_joint_names:
+			reaching_joints.append(joint)
+
+	return reaching_joints
 
 func try_grab() -> void:
-	var threshold_distance = 0.1
+	var threshold_distance = 0.03
 	
 	# LEFT HAND
 	if reaching_left_hand and not attached_holds["lh"]:
-		var dist = get_bone_world_pos("LeftHand").distance_to(left_hand_target.global_position)
+		var dist = get_bone_world_transform("LeftHand").origin.distance_to(left_hand_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("lh")
 
 	# RIGHT HAND
 	if reaching_right_hand and not attached_holds["rh"]:
-		var dist = get_bone_world_pos("RightHand").distance_to(right_hand_target.global_position)
+		var dist = get_bone_world_transform("RightHand").origin.distance_to(right_hand_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("rh")
 
 	# LEFT FOOT
 	if reaching_left_foot and not attached_holds["lf"]:
-		var dist = get_bone_world_pos("LeftFoot").distance_to(left_foot_target.global_position)
+		var dist = get_bone_world_transform("LeftFoot").origin.distance_to(left_foot_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("lf")
 
 	# RIGHT FOOT
 	if reaching_right_foot and not attached_holds["rf"]:
-		var dist = get_bone_world_pos("RightFoot").distance_to(right_foot_target.global_position)
+		var dist = get_bone_world_transform("RightFoot").origin.distance_to(right_foot_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("rf")
 
@@ -417,11 +464,11 @@ func copy_physical_to_skeleton():
 			var local_pose: Transform3D = parent_pose.affine_inverse() * phys_in_skeleton_space * offset_inverse
 			skeleton.set_bone_pose(bone_idx, local_pose)
 
-func get_bone_world_pos(bone_name: String) -> Vector3:
+func get_bone_world_transform(bone_name: String) -> Transform3D:
 	var physical_bone_name = character.bone_names[bone_name]
 	var phys_bone: PhysicalBone3D = character.bone_sim.find_child(physical_bone_name)
 	if phys_bone == null:
-		return Vector3.ZERO
+		return Transform3D.IDENTITY
 	
 	# 1. PhysicalBone global transform (world)
 	var phys_world: Transform3D = phys_bone.global_transform
@@ -433,7 +480,7 @@ func get_bone_world_pos(bone_name: String) -> Vector3:
 	# 3. Compute **true bone world transform**
 	var bone_world: Transform3D = phys_world * offset_inv
 	
-	return bone_world.origin
+	return bone_world
 
 func save_joint_angles() -> Dictionary:
 	var result := {}
@@ -637,51 +684,137 @@ func update_joint_torque_motors(target: Dictionary) -> void:
 func update_joint_velocity_motors(target: Dictionary) -> void:
 	if joints == null or target == null:
 		return
-
+	
+	var reaching_joints = get_reaching_joints()
+	
 	for joint in joints:
-
-		var joint_name = joint.name
-		if not target.has(joint_name):
+		if (not target.has(joint.name)) or (joint in reaching_joints):
 			continue
 		
-		var B_joint: Basis = joint.global_basis
-		
-
-		var res = get_PD_data(joint, target)
-		var error_vec = res["error_vec"]
-		
-		var error_joint = B_joint.inverse() * error_vec
-		
-		var omega_max = JOINT_CONSTANTS[joint_name].omega_max
-		var error_scale = Vector3.ONE #JOINT_CONSTANTS[joint_name].error_scale
-		var omega_target_joint := Vector3(
-			-omega_max.x * tanh(error_joint.x / error_scale.x),
-			-omega_max.y * tanh(error_joint.y / error_scale.y),
-			-omega_max.z * tanh(error_joint.z / error_scale.z)
-		)
-		
-		# Deadzone might prevent micro-jitter:
-		if abs(error_joint.x) < joint_motor_velocity_deadzone:
-			omega_target_joint.x = 0.0
-		if abs(error_joint.y) < joint_motor_velocity_deadzone:
-			omega_target_joint.y = 0.0
-		if abs(error_joint.z) < joint_motor_velocity_deadzone:
-			omega_target_joint.z = 0.0
+		var omega_target_joint = compute_pose_driven_joint_velocity(joint, target)
 		
 		var vel_world = joint.global_transform.basis * omega_target_joint
-		
 		DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
-		DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + error_vec,Color.YELLOW,0.01)
 		
 		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.x)
 		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.y)
 		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.z)
 
-func enable_velocity_motors() -> void:
-	if joints == null:
-		return
+
+func compute_pose_driven_joint_velocity(joint: Generic6DOFJoint3D, target: Dictionary) -> Vector3:
+	var B_joint: Basis = joint.global_basis
+		
+	var res = get_PD_data(joint, target)
+	var error_vec = res["error_vec"]
 	
-	for joint in joints:
+	var error_joint = B_joint.inverse() * error_vec
+	
+	var omega_max = JOINT_CONSTANTS[joint.name].omega_max
+	var error_scale = Vector3.ONE #JOINT_CONSTANTS[joint_name].error_scale
+	var omega_target_joint := Vector3(
+		-omega_max.x * tanh(error_joint.x / error_scale.x),
+		-omega_max.y * tanh(error_joint.y / error_scale.y),
+		-omega_max.z * tanh(error_joint.z / error_scale.z)
+	)
+	
+	# Deadzone might prevent micro-jitter:
+	if abs(error_joint.x) < joint_motor_velocity_deadzone:
+		omega_target_joint.x = 0.0
+	if abs(error_joint.y) < joint_motor_velocity_deadzone:
+		omega_target_joint.y = 0.0
+	if abs(error_joint.z) < joint_motor_velocity_deadzone:
+		omega_target_joint.z = 0.0
+	
+	return omega_target_joint
+
+
+func compute_desired_end_effector_velocity(current_pos: Vector3, target_pos: Vector3) -> Vector3:
+	var pos_error = target_pos - current_pos
+	var max_vel = 10.0
+	var error_scale = 1.0
+	var v_desired := Vector3(
+			max_vel * tanh(pos_error.x / error_scale),
+			max_vel * tanh(pos_error.y / error_scale),
+			max_vel * tanh(pos_error.z / error_scale)
+		)
+	return v_desired
+
+func compute_desired_end_effector_angular_velocity(current_rot: Quaternion, target_rot: Quaternion, gain := 1.0, max_ang_vel := 4.0, angle_scale := 1.0) -> Vector3:
+	var q_err = target_rot * current_rot.inverse()
+
+	if q_err.w < 0.0:
+		q_err = -q_err
+
+	var axis = q_err.get_axis()
+	var angle = q_err.get_angle()
+
+	var scaled_angle = angle * gain
+	var ang_speed = max_ang_vel * tanh(scaled_angle / angle_scale)
+
+	return axis * ang_speed
+
+func compute_position_jacobian(reaching_joints: Array, end_effector_pos: Vector3) -> Dictionary:
+	var J := {}
+
+	for joint in reaching_joints:
+		var basis = joint.global_transform.basis
+		var joint_pos = joint.global_transform.origin
+		var r = end_effector_pos - joint_pos
+
+		J[joint.name] = {
+			"x": basis.x.cross(r),
+			"y": basis.y.cross(r),
+			"z": basis.z.cross(r)
+		}
+
+	return J
+
+func compute_rotation_jacobian(reaching_joints: Array) -> Dictionary:
+	var J := {}
+
+	for joint in reaching_joints:
+		var basis = joint.global_transform.basis
+
+		J[joint.name] = {
+			"x": basis.x,
+			"y": basis.y,
+			"z": basis.z
+		}
+
+	return J
+
+func compute_position_joint_velocities(J: Dictionary, v_desired: Vector3, gain := 1.0) -> Dictionary:
+	var velocities := {}
+
+	for joint_name in J.keys():
+		var Ji = J[joint_name]
+
+		velocities[joint_name] = Vector3(
+			gain * Ji["x"].dot(v_desired),
+			gain * Ji["y"].dot(v_desired),
+			gain * Ji["z"].dot(v_desired)
+		)
+
+	return velocities
+
+func compute_rotation_joint_velocities(J: Dictionary, w_desired: Vector3, gain := 1.0) -> Dictionary:
+	var velocities := {}
+
+	for joint_name in J.keys():
+		var Ji = J[joint_name]
+
+		velocities[joint_name] = Vector3(
+			gain * Ji["x"].dot(w_desired),
+			gain * Ji["y"].dot(w_desired),
+			gain * Ji["z"].dot(w_desired)
+		)
+
+	return velocities
+
+func enable_velocity_motors(joints_to_enable: Array[Generic6DOFJoint3D]) -> void:
+	print("Enabling:")
+	for joint in joints_to_enable:
+		print(joint.name)
 		var max_torque = JOINT_CONSTANTS[joint.name].max_torque
 		
 		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
@@ -692,8 +825,8 @@ func enable_velocity_motors() -> void:
 		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
 		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
 
-func disable_velocity_motors() -> void:
-	for joint in joints:
+func disable_velocity_motors(joints_to_disable: Array[Generic6DOFJoint3D]) -> void:
+	for joint in joints_to_disable:
 		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
 		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
 		joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
@@ -765,16 +898,52 @@ func _on_release_right_foot() -> void:
 	print("Release right foot pressed")
 
 func _on_reach_left_hand() -> void:
-	reaching_left_hand = not reaching_left_hand
+	var reaching_joints = get_reaching_joints()
+	
+	if reaching_left_hand:
+		reaching_left_hand = false
+		if not run_joint_motors:
+			disable_velocity_motors(reaching_joints)
+	else:
+		reaching_left_hand = true
+		reaching_joints = get_reaching_joints()
+		enable_velocity_motors(reaching_joints)
 
 func _on_reach_right_hand() -> void:
-	reaching_right_hand = not reaching_right_hand
+	var reaching_joints = get_reaching_joints()
+	
+	if reaching_right_hand:
+		reaching_right_hand = false
+		if not run_joint_motors:
+			disable_velocity_motors(reaching_joints)
+	else:
+		reaching_right_hand = true
+		reaching_joints = get_reaching_joints()
+		enable_velocity_motors(reaching_joints)
 
 func _on_reach_left_foot() -> void:
-	reaching_left_foot = not reaching_left_foot
+	var reaching_joints = get_reaching_joints()
+	
+	if reaching_left_foot:
+		reaching_left_foot = false
+		if not run_joint_motors:
+			disable_velocity_motors(reaching_joints)
+	else:
+		reaching_left_foot = true
+		reaching_joints = get_reaching_joints()
+		enable_velocity_motors(reaching_joints)
 
 func _on_reach_right_foot() -> void:
-	reaching_right_foot = not reaching_right_foot
+	var reaching_joints = get_reaching_joints()
+	
+	if reaching_right_foot:
+		reaching_right_foot = false
+		if not run_joint_motors:
+			disable_velocity_motors(reaching_joints)
+	else:
+		reaching_right_foot = true
+		reaching_joints = get_reaching_joints()
+		enable_velocity_motors(reaching_joints)
 
 func _on_left_hand_target_changed(value: int) -> void:
 	# To be specific, value is the index of the selected item in the dropdown menu. Should be the same as the index of the hold in route.get_holds()
@@ -807,14 +976,17 @@ func _on_reach_pose() -> void:
 		run_joint_motors = false
 		
 		#These lines are currently for joint velocity motors specifically
-		disable_velocity_motors()
+		disable_velocity_motors(joints)
 		#apply_joint_params(initial_joint_params)
+		
+		var reaching_joints = get_reaching_joints()
+		enable_velocity_motors(reaching_joints)
 	else:
 		print("Driving motors to reach target pose")
 		run_joint_motors = true
 		
 		#These lines are currently for joint velocity motors specifically
-		enable_velocity_motors()
+		enable_velocity_motors(joints)
 		#apply_joint_params(JOINT_CONSTANTS)
 
 func _on_generic_value_changed(value: float) -> void:
