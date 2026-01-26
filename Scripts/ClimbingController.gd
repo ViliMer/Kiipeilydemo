@@ -7,9 +7,12 @@ var route: Route
 var joints: Array[Generic6DOFJoint3D]
 
 var saved_joint_angles: Dictionary
+var initial_joint_params: Dictionary
 var previous_joint_angles := {}
 var previous_joint_torques := {}
 var run_joint_motors := false
+
+var joint_motor_velocity_deadzone = 0.05
 
 var left_hand_target: Node3D
 var right_hand_target: Node3D
@@ -44,6 +47,7 @@ func init(character_ref: CharacterBody3D) -> void:
 	character = character_ref
 	skeleton = character.skeleton
 	joints = character.get_joints()
+	save_joint_params()
 
 	left_hand_target = character.get_node("Left Hand Target")
 	right_hand_target = character.get_node("Right Hand Target")
@@ -58,6 +62,33 @@ func _input(_event: InputEvent) -> void:
 	if Input.is_action_just_pressed("Save Pose"):
 		print("Saving free joint angles...")
 		_on_save_pose()
+
+
+# This function saves current joint angular spring stiffness and damping for all joints
+func save_joint_params() -> void:
+	for joint in joints:
+		var joint_name = joint.name
+		var angular_spring_stiffness: Vector3 = Vector3(joint.get_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS), joint.get_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS), joint.get_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS))
+		var angular_spring_damping: Vector3 = Vector3(joint.get_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING), joint.get_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING), joint.get_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING))
+		initial_joint_params[joint_name] = {
+			"stiffness": angular_spring_stiffness,
+			"damping": angular_spring_damping
+		}
+
+# This function applies joint angular spring stiffness and damping for all joints
+func apply_joint_params(joint_params: Dictionary) -> void:
+	print(joint_params)
+	for joint in joints:
+		var stiffness = joint_params[joint.name].stiffness
+		var damping = joint_params[joint.name].damping
+		
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS, stiffness.x)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS, stiffness.y)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS, stiffness.z)
+		
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING, damping.x)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING, damping.y)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING, damping.z)
 
 func enter_climb(new_route: Route):
 	route = new_route
@@ -128,7 +159,8 @@ func update_climbing(_delta: float) -> void:
 	reach()'''
 	
 	if run_joint_motors:
-		update_joint_motors(saved_joint_angles)
+		#update_joint_torque_motors(saved_joint_angles)
+		update_joint_velocity_motors(saved_joint_angles)
 	
 	try_grab()
 
@@ -247,9 +279,12 @@ func _add_limb_lock(limb: String) -> void:
 	physical_bone.axis_lock_linear_x = true
 	physical_bone.axis_lock_linear_y = true
 	physical_bone.axis_lock_linear_z = true
-	physical_bone.axis_lock_angular_x = true
 	if limb == "lh" or limb == "rh":
+		physical_bone.axis_lock_angular_x = true
 		physical_bone.axis_lock_angular_y = true
+	if limb == "lf" or limb == "rf":
+		physical_bone.axis_lock_angular_z = true
+		physical_bone.axis_lock_angular_x = true
 
 func _remove_limb_locks() -> void:
 	var limbs = ["lh", "rh", "lf", "rf"]
@@ -493,7 +528,8 @@ func get_PD_data(joint: Generic6DOFJoint3D, target: Dictionary) -> Dictionary:
 
 	joint_error_integrals[joint.name] = error_integral
 '''
-
+'''
+# Torque motor values
 var JOINT_CONSTANTS = {
 	"Spine Joint":			{ "max_torque": 200.0, "Kd": Vector3(5.0, 5.0, 5.0), "omega_max": Vector3(5.0, 5.0, 5.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
 	"LowerChest Joint":		{ "max_torque": 120.0, "Kd": Vector3(4.0, 4.0, 4.0), "omega_max": Vector3(5.0, 5.0, 5.0), "error_scale": Vector3(0.125, 0.125, 0.125) }, # x = fwd/back, y = twist, z = side to side
@@ -512,15 +548,41 @@ var JOINT_CONSTANTS = {
 	"RightHip Joint":		{ "max_torque": 150.0, "Kd": Vector3(6.0, 0.5, 4.0), "omega_max": Vector3(20.0, 10.0, 20.0), "error_scale": Vector3(0.3, 0.5, 0.3) },
 	"RightKnee Joint":		{ "max_torque": 120.0, "Kd": Vector3(2.0, 0.0, 0.0), "omega_max": Vector3(20.0, 0.0, 0.0), "error_scale": Vector3(0.3, 1.0, 1.0) },
 	"RightAnkle Joint":		{ "max_torque": 50.0, "Kd": Vector3(0.5, 0.5, 0.0), "omega_max": Vector3(10.0, 10.0, 0.0), "error_scale": Vector3(0.2, 0.2, 1.0) },
+}'''
+
+# Velocity motor values
+var JOINT_CONSTANTS = {
+	"Spine Joint":			{ "max_torque": 200.0, "omega_max": Vector3(0.5, 0.5, 0.5), "error_scale": Vector3(0.5, 0.5, 0.5), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(100.0, 100.0, 100.0) }, # x = fwd/back, y = twist, z = side to side
+	"LowerChest Joint":		{ "max_torque": 120.0, "omega_max": Vector3(0.5, 0.5, 0.5), "error_scale": Vector3(0.5, 0.5, 0.5), "stiffness": Vector3(10.0, 10.0, 10.0), "damping": Vector3(75.0, 75.0, 75.0) }, # x = fwd/back, y = twist, z = side to side
+	"Chest Joint":			{ "max_torque": 120.0, "omega_max": Vector3(0.5, 0.5, 0.5), "error_scale": Vector3(0.5, 0.5, 0.5), "stiffness": Vector3(10.0, 10.0, 10.0), "damping": Vector3(50.0, 50.0, 50.0) }, # x = fwd/back, y = twist, z = side to side
+	"LeftUpperChest Joint":	{ "max_torque": 120.0, "omega_max": Vector3(0.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.0, 20.0, 100.0), "damping": Vector3(0.0, 30.0, 30.0) }, # x = twist, y = fwd/back, z = up/down
+	"LeftShoulder Joint":	{ "max_torque": 80.0, "omega_max": Vector3(1.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.001, 0.001, 0.001), "damping": Vector3(20.0, 20.0, 20.0) }, # x = twist, y = forward / back, z = lateral raise
+	"LeftElbow Joint":		{ "max_torque": 60.0, "omega_max": Vector3(0.0, 3.0, 0.0), "error_scale": Vector3(1.0, 0.5, 1.0), "stiffness": Vector3(0.0, 0.01, 0.0), "damping": Vector3(0.0, 10.0, 0.0) },
+	"LeftWrist Joint":		{ "max_torque": 30.0, "omega_max": Vector3(0.5, 0.5, 1.2), "error_scale": Vector3(1.0, 1.0, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(5.0, 5.0, 5.0) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
+	"RightUpperChest Joint":{ "max_torque": 120.0, "omega_max": Vector3(0.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.0, 20.0, 100.0), "damping": Vector3(0.0, 30.0, 30.0) }, # x = twist, y = fwd/back, z = up/down
+	"RightShoulder Joint":	{ "max_torque": 80.0, "omega_max": Vector3(1.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(20.0, 20.0, 20.0) }, # x = twist, y = forward / back, z = lateral raise
+	"RightElbow Joint":		{ "max_torque": 60.0, "omega_max": Vector3(0.0, 3.0, 0.0), "error_scale": Vector3(1.0, 0.5, 1.0), "stiffness": Vector3(0.0, 0.01, 0.0), "damping": Vector3(0.0, 10.0, 0.0) },
+	"RightWrist Joint":		{ "max_torque": 30.0, "omega_max": Vector3(0.5, 0.5, 1.2), "error_scale": Vector3(1.0, 1.0, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(5.0, 5.0, 5.0) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
+	"LeftHip Joint":		{ "max_torque": 150.0, "omega_max": Vector3(4.0, 1.0, 4.0), "error_scale": Vector3(0.75, 1.0, 0.75), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(50.0, 50.0, 50.0) }, # Here y is the twist axis
+	"LeftKnee Joint":		{ "max_torque": 120.0, "omega_max": Vector3(4.0, 0.0, 0.0), "error_scale": Vector3(0.5, 1.0, 1.0), "stiffness": Vector3(0.01, 0.0, 0.0), "damping": Vector3(30.0, 0.0, 0.0) },
+	"LeftAnkle Joint":		{ "max_torque": 50.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
+	"RightHip Joint":		{ "max_torque": 150.0, "omega_max": Vector3(4.0, 1.0, 4.0), "error_scale": Vector3(0.75, 1.0, 0.75), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(50.0, 50.0, 50.0) },
+	"RightKnee Joint":		{ "max_torque": 120.0, "omega_max": Vector3(4.0, 0.0, 0.0), "error_scale": Vector3(0.5, 1.0, 1.0), "stiffness": Vector3(0.01, 0.0, 0.0), "damping": Vector3(30.0, 0.0, 0.0) },
+	"RightAnkle Joint":		{ "max_torque": 50.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
 }
 
-func update_joint_motors(target: Dictionary) -> void:
+func update_joint_torque_motors(target: Dictionary) -> void:
 	if joints == null or target == null:
 		return
 	
 	# World frame gravity compensations for root supported joints
 	#var gravity_compensations = character.compute_gravity_compensation_for_joints(free_joint_names) #If I bring this back later for limbs that are not connected, I should refactor the function t accept joint nodes instead of the names
-
+	
+	# If I want to use this function I will have to:
+	# 1. Compute gravity compensating torques (seems complicated)
+	# OR
+	# 2. Use effective inertia in velocity control (this is what the velocity motors do). Might be simpler than 1. (at least the concept is simpler) but still need to estimate effective inertia which might not be easy
+	
 	for joint in joints:
 		var joint_name = joint.name
 		if not target.has(joint_name):
@@ -572,6 +634,73 @@ func update_joint_motors(target: Dictionary) -> void:
 		node_a.external_torque -= target_torque_world
 		node_b.external_torque += target_torque_world
 
+func update_joint_velocity_motors(target: Dictionary) -> void:
+	if joints == null or target == null:
+		return
+
+	for joint in joints:
+
+		var joint_name = joint.name
+		if not target.has(joint_name):
+			continue
+		
+		var B_joint: Basis = joint.global_basis
+		
+
+		var res = get_PD_data(joint, target)
+		var error_vec = res["error_vec"]
+		
+		var error_joint = B_joint.inverse() * error_vec
+		
+		var omega_max = JOINT_CONSTANTS[joint_name].omega_max
+		var error_scale = Vector3.ONE #JOINT_CONSTANTS[joint_name].error_scale
+		var omega_target_joint := Vector3(
+			-omega_max.x * tanh(error_joint.x / error_scale.x),
+			-omega_max.y * tanh(error_joint.y / error_scale.y),
+			-omega_max.z * tanh(error_joint.z / error_scale.z)
+		)
+		
+		# Deadzone might prevent micro-jitter:
+		if abs(error_joint.x) < joint_motor_velocity_deadzone:
+			omega_target_joint.x = 0.0
+		if abs(error_joint.y) < joint_motor_velocity_deadzone:
+			omega_target_joint.y = 0.0
+		if abs(error_joint.z) < joint_motor_velocity_deadzone:
+			omega_target_joint.z = 0.0
+		
+		var vel_world = joint.global_transform.basis * omega_target_joint
+		
+		DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
+		DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + error_vec,Color.YELLOW,0.01)
+		
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.x)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.y)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega_target_joint.z)
+
+func enable_velocity_motors() -> void:
+	if joints == null:
+		return
+	
+	for joint in joints:
+		var max_torque = JOINT_CONSTANTS[joint.name].max_torque
+		
+		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
+		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
+		joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
+
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
+
+func disable_velocity_motors() -> void:
+	for joint in joints:
+		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
+		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
+		joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
+		
+		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
+		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
+		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, 0.0)
 
 
 #### Signal stuff ####
@@ -604,6 +733,8 @@ func connect_signals() -> void:
 	# Other
 	SignalBus.save_pose.connect(_on_save_pose)
 	SignalBus.reach_pose.connect(_on_reach_pose)
+	
+	SignalBus.generic_value_changed.connect(_on_generic_value_changed)
 
 func _on_left_hand_strength_changed(value: float) -> void:
 	left_hand_force = value
@@ -674,6 +805,17 @@ func _on_reach_pose() -> void:
 	if run_joint_motors:
 		print("Disabling motors")
 		run_joint_motors = false
+		
+		#These lines are currently for joint velocity motors specifically
+		disable_velocity_motors()
+		#apply_joint_params(initial_joint_params)
 	else:
 		print("Driving motors to reach target pose")
 		run_joint_motors = true
+		
+		#These lines are currently for joint velocity motors specifically
+		enable_velocity_motors()
+		#apply_joint_params(JOINT_CONSTANTS)
+
+func _on_generic_value_changed(value: float) -> void:
+	joint_motor_velocity_deadzone = value

@@ -32,6 +32,10 @@ extends Control
 @onready var save_pose: Button = $"MarginContainer/GridContainer/Left Leg Container/Save pose"
 @onready var reach_pose: Button = $"MarginContainer/GridContainer/Right Leg Container/Reach Pose"
 
+@onready var generic_line_edit: LineEdit = $"MarginContainer/GridContainer/VBoxContainer/HBoxContainer/Generic LineEdit"
+@onready var generic_slider: HSlider = $"MarginContainer/GridContainer/VBoxContainer/Generic slider"
+
+
 func _ready() -> void:
 	_connect_ui()
 	
@@ -111,6 +115,9 @@ func _connect_ui() -> void:
 		SignalBus.save_pose.emit())
 	reach_pose.pressed.connect(func():
 		SignalBus.reach_pose.emit())
+	
+	generic_slider.value_changed.connect(_on_generic_slider_changed)
+	generic_line_edit.text_submitted.connect(_on_generic_edit_submitted)
 
 func _on_left_hand_slider_changed(value: float) -> void:
 	left_hand_strength_edit.text = str(value)
@@ -168,3 +175,13 @@ func find_item_index_by_text(option_button: OptionButton, text: String) -> int:
 		if option_button.get_item_text(i) == text:
 			return i
 	return -1  # not found
+
+
+func _on_generic_slider_changed(value: float) -> void:
+	generic_line_edit.text = str(value)
+	SignalBus.generic_value_changed.emit(value)
+
+func _on_generic_edit_submitted(text: String) -> void:
+	var v := float(text)
+	generic_slider.value = v
+	SignalBus.generic_value_changed.emit(v)

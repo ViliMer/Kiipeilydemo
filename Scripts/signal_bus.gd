@@ -48,3 +48,6 @@ signal right_foot_target_changed(value: int)
 signal save_pose
 @warning_ignore("unused_signal")
 signal reach_pose
+
+@warning_ignore("unused_signal")
+signal generic_value_changed(value: float)
