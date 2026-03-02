@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://bvpu7c0hg33fj"]
+
+[ext_resource type="Script" uid="uid://cln38qtbmpmvk" path="res://Scripts/CameraController.gd" id="1_wovnw"]
+
+[node name="CameraController" type="Node3D" unique_id=698645603]
+script = ExtResource("1_wovnw")
+
+[node name="ThirdPersonRig" type="Node3D" parent="." unique_id=581085161]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.515, 0)
+
+[node name="CameraMount" type="Node3D" parent="ThirdPersonRig" unique_id=1268846161]
+transform = Transform3D(-1, 2.2626677e-08, -8.444391e-08, 0, 0.96592575, 0.258819, 8.742278e-08, 0.258819, -0.96592575, 0, 0.455, -2.097)
+
+[node name="Camera3D" type="Camera3D" parent="ThirdPersonRig/CameraMount" unique_id=439182300]
+transform = Transform3D(1, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 0, 0, 0)
+
+[node name="FirstPersonRig" type="Node3D" parent="." unique_id=1517577933]
+
+[node name="CameraMount" type="Node3D" parent="FirstPersonRig" unique_id=1089394850]

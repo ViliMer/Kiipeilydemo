@@ -12,19 +12,29 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var g_dir = ProjectSettings.get_setting("physics/3d/default_gravity_vector").normalized()
 var gravity_vector = g_dir * gravity
 
-@onready var camera_pivot: Node3D = $CameraPivot
-@onready var camera_node: Camera3D = $CameraPivot/Camera3D
+@onready var camera_controller: CameraController = $CameraController
 @onready var anim: AnimationPlayer = $"Imported Character/AnimationPlayer"
 
 @onready var mesh: MeshInstance3D = $"Imported Character/Rig/GeneralSkeleton/Mannequin"
 @onready var skeleton: Skeleton3D = %GeneralSkeleton
+
+@onready var IK_character_node: Node3D = $"IK Character"
+@onready var IK_skeleton: Skeleton3D = $"IK Character/Rig/GeneralSkeleton"
+
 @onready var bone_sim: PhysicalBoneSimulator3D = $"Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
 
-@onready var right_hand_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Right Hand IK"
-@onready var left_hand_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Left Hand IK"
-@onready var right_foot_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Right Foot IK"
-@onready var left_foot_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Left Foot IK"
+#@onready var right_hand_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Right Hand IK"
+#@onready var left_hand_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Left Hand IK"
+#@onready var right_foot_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Right Foot IK"
+#@onready var left_foot_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Left Foot IK"
+@onready var right_hand_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/RightHandIK"
+@onready var left_hand_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/LeftHandIK"
+@onready var spine_to_right_shoulder_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/SpineToRightShoulderIK"
+@onready var spine_to_left_shoulder_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/SpineToLeftShoulderIK"
+@onready var right_foot_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/RightFootIK"
+@onready var left_foot_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/LeftFootIK"
+
 
 @onready var right_hand_target: Node3D = $"Right Hand Target"
 @onready var left_hand_target: Node3D = $"Left Hand Target"
@@ -39,7 +49,6 @@ var route: Route = null
 @onready var can_climb_prompt: Label = $"../Can climb prompt"
 
 var dragging: DraggingController
-var camera_controller: CameraController
 var joint_motor_tester: Control
 const JOINT_MOTOR_TESTER_UI = preload("uid://c8gl12gcitj16")
 
@@ -93,6 +102,10 @@ var bone_structure = {
 var cached_descendant_bones = {} # Cache a list of children for all parent bones
 var bone_rotation_offsets = {} #Store offsets that allow transformation between physical bones and bones
 
+var joints = {}
+
+var IK_modified_bone_transforms: Dictionary = {}
+
 func get_all_descendants(bone_name: String, children_map: Dictionary, descendants := []) -> Array:
 	if children_map[bone_name].is_empty():
 		# Reached leaf bone
@@ -130,8 +143,6 @@ func _ready() -> void:
 	add_child(dragging)
 	dragging.init(self)
 	
-	camera_controller = CameraController.new()
-	add_child(camera_controller)
 	camera_controller.init(self)
 	
 	joint_motor_tester = JOINT_MOTOR_TESTER_UI.instantiate()
@@ -151,10 +162,13 @@ func _ready() -> void:
 		var bone_pos = bone_transform.origin
 		var bone_rot = bone_transform.basis.get_euler()
 
-		print("Bone:", bone_name, " | Global Position:", bone_pos, " | Global Rotation: ", rad_to_deg(bone_rot.x), ", ", rad_to_deg(bone_rot.y), ", ", rad_to_deg(bone_rot.z))
+		print("Bone: ", bone_name, ", Bone index: ", bone_idx, " | Global Position:", bone_pos, " | Global Rotation: ", rad_to_deg(bone_rot.x), ", ", rad_to_deg(bone_rot.y), ", ", rad_to_deg(bone_rot.z))
 	
 	for physical_bone_name in bone_structure.keys():
 		cached_descendant_bones[physical_bone_name] = get_all_descendants(physical_bone_name, bone_structure)
+	
+	get_joints()
+	populate_IK_modified_bone_transforms()
 
 
 func _input(event: InputEvent) -> void:
@@ -174,7 +188,7 @@ func _input(event: InputEvent) -> void:
 		joint_motor_tester.enable()
 	elif Input.is_action_just_pressed("Joint Motor Test") and state == PlayerState.TEST_JOINT_MOTORS:
 		state = PlayerState.MOVE
-		camera_controller.exit_free_fly()
+		camera_controller.enter_third_person()
 		joint_motor_tester.disable()
 		
 	if Input.is_action_just_pressed("Interact") and can_climb:
@@ -243,8 +257,6 @@ func enable_ragdoll() -> void:
 	state = PlayerState.RAGDOLL
 	velocity = Vector3.ZERO
 
-	#anim.play("A_TPose")
-	#anim.seek(0.0, true)
 	anim.play("hand_pose")
 	anim.seek(0.0, true)
 	anim.stop()
@@ -265,7 +277,7 @@ func disable_ragdoll() -> void:
 	anim.play("Idle")
 	rotation.x = 0.0
 	rotation.z = 0.0
-	camera_controller.exit_free_fly()
+	camera_controller.enter_third_person()
 
 
 func _on_wall_can_climb(new_route: Node3D) -> void:
@@ -282,8 +294,8 @@ func _on_wall_cant_climb() -> void:
 func start_climbing():
 	SignalBus.start_route.emit(route)
 	state = PlayerState.CLIMB
-	await climbing.enter_climb(route)
 	camera_controller.enter_free_fly()
+	await climbing.enter_climb(route)
 
 func stop_climbing():
 	state = PlayerState.RAGDOLL
@@ -328,12 +340,10 @@ func run_bone_sim(run: bool, include: Array[StringName] = []) -> void:
 	
 	bone_sim.physical_bones_start_simulation(include)
 
-func get_joints() -> Array[Generic6DOFJoint3D]:
-	var joints: Array[Generic6DOFJoint3D] = []
-
+func get_joints() -> void:
 	if bone_sim == null:
 		push_warning("get_joints(): bone_sim is null")
-		return joints
+		return
 
 	# Iterate through all physical bones managed by the simulator
 	for bone in bone_sim.get_children():
@@ -343,9 +353,7 @@ func get_joints() -> Array[Generic6DOFJoint3D]:
 		# Now inspect children of each PhysicalBone3D
 		for child in bone.get_children():
 			if child is Generic6DOFJoint3D:
-				joints.append(child)
-
-	return joints
+				joints[child.name] = child
 
 func get_physical_bone_from_joint(joint_name: String) -> PhysicalBone3D:
 	var joint: Generic6DOFJoint3D = bone_sim.find_child(joint_name)
@@ -388,3 +396,100 @@ func compute_gravity_compensation_for_joints(joints: Array) -> Dictionary:
 		result[joint_name] = torque
 
 	return result
+
+func populate_IK_modified_bone_transforms() -> void:
+	var IK_skeleton_bones = {
+		"Hips": 1,
+		"Spine": 2,
+		"Chest": 3,
+		"UpperChest": 4,
+		"Neck": 5,
+		"LeftShoulder": 7,
+		"LeftUpperArm": 8,
+		"LeftLowerArm": 9,
+		"LeftHand": 10,
+		"RightShoulder": 26,
+		"RightUpperArm": 27,
+		"RightLowerArm": 28,
+		"RightHand": 29,
+		"LeftUpperLeg": 45,
+		"LeftLowerLeg": 46,
+		"LeftFoot": 47,
+		"RightUpperLeg": 49,
+		"RightLowerLeg": 50,
+		"RightFoot": 51
+	}
+	for bone_idx in IK_skeleton_bones.values():
+		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
+		IK_modified_bone_transforms[bone_idx] = t
+
+func _on_right_hand_ik_modification_processed() -> void:
+	var bone_chain = {
+		"RightShoulder": 26,
+		"RightUpperArm": 27,
+		"RightLowerArm": 28,
+		"RightHand": 29,
+	}
+	for bone_idx in bone_chain.values():
+		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
+		IK_modified_bone_transforms[bone_idx] = t
+
+
+func _on_left_hand_ik_modification_processed() -> void:
+	var bone_chain = {
+		"LeftShoulder": 7,
+		"LeftUpperArm": 8,
+		"LeftLowerArm": 9,
+		"LeftHand": 10,
+	}
+	for bone_idx in bone_chain.values():
+		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
+		IK_modified_bone_transforms[bone_idx] = t
+
+
+func _on_spine_to_right_shoulder_ik_modification_processed() -> void:
+	var bone_chain = {
+		"Hips": 1,
+		"Spine": 2,
+		"Chest": 3,
+		"UpperChest": 4,
+		"RightShoulder": 26,
+	}
+	for bone_idx in bone_chain.values():
+		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
+		IK_modified_bone_transforms[bone_idx] = t
+
+
+func _on_spine_to_left_shoulder_ik_modification_processed() -> void:
+	var bone_chain = {
+		"Hips": 1,
+		"Spine": 2,
+		"Chest": 3,
+		"UpperChest": 4,
+		"LeftShoulder": 7,
+	}
+	for bone_idx in bone_chain.values():
+		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
+		IK_modified_bone_transforms[bone_idx] = t
+
+
+func _on_right_foot_ik_modification_processed() -> void:
+	var bone_chain = {
+		"RightUpperLeg": 49,
+		"RightLowerLeg": 50,
+		"RightFoot": 51
+	}
+	for bone_idx in bone_chain.values():
+		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
+		IK_modified_bone_transforms[bone_idx] = t
+
+
+func _on_left_foot_ik_modification_processed() -> void:
+	var bone_chain = {
+		"LeftUpperLeg": 45,
+		"LeftLowerLeg": 46,
+		"LeftFoot": 47,
+	}
+	for bone_idx in bone_chain.values():
+		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
+		IK_modified_bone_transforms[bone_idx] = t

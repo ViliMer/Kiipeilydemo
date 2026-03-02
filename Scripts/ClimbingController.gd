@@ -3,8 +3,12 @@ extends Node
 
 var character: CharacterBody3D
 var skeleton: Skeleton3D
+
+var IK_character_node: Node3D
+var IK_skeleton: Skeleton3D
+
 var route: Route
-var joints: Array[Generic6DOFJoint3D]
+var planner: ClimbingPlanner
 
 var saved_joint_angles: Dictionary
 var initial_joint_params: Dictionary
@@ -12,7 +16,7 @@ var previous_joint_angles := {}
 var previous_joint_torques := {}
 var reach_pose := false
 
-var joint_motor_velocity_deadzone = 0.05
+var joint_motor_velocity_deadzone = 0.01
 
 var left_hand_target: Node3D
 var right_hand_target: Node3D
@@ -46,13 +50,20 @@ var target_holds = {
 func init(character_ref: CharacterBody3D) -> void:
 	character = character_ref
 	skeleton = character.skeleton
-	joints = character.get_joints()
+	
+	IK_character_node = character.IK_character_node
+	IK_skeleton = character.IK_skeleton
+	
 	save_joint_params()
 
 	left_hand_target = character.get_node("Left Hand Target")
 	right_hand_target = character.get_node("Right Hand Target")
 	left_foot_target = character.get_node("Left Foot Target")
 	right_foot_target = character.get_node("Right Foot Target")
+	
+	planner = ClimbingPlanner.new() # If there is some trouble later, I might need to add this as a child in the scene tree
+	add_child(planner)
+	planner.init(character)
 	
 	connect_signals()
 
@@ -65,104 +76,82 @@ func _input(_event: InputEvent) -> void:
 
 func enter_climb(new_route: Route):
 	route = new_route
-	character.collision_shape.disabled = true
+	attached_holds = route.get_starting_holds().duplicate(true)
+	target_holds = route.get_starting_holds().duplicate(true)
+	_update_ik_targets(target_holds)
 	
-	character.velocity = Vector3.ZERO
+	var start_pose = await planner.plan_start_pose(target_holds)
+	
+	await reach_start_pose(start_pose)
+	character.bone_sim.active = true
+	character.run_bone_sim(true)
+
+func reach_start_pose(start_pose: Dictionary) -> void:
 	
 	character.anim.play("hand_pose")
 	character.anim.seek(0.0, true)
 	character.anim.stop()
 	
-	await move_character_to_start(route.get_starting_holds(), route.climb_start_position, 1.0)
+	var target_transforms: Dictionary = start_pose["bone_transforms"]
 	
-	attached_holds = route.get_starting_holds().duplicate(true)
-	target_holds = route.get_starting_holds().duplicate(true)
+	# Capture current local rotations
+	var start_transforms := {}
+	for bone_idx in target_transforms.keys():
+		start_transforms[bone_idx] = skeleton.get_bone_global_pose(bone_idx)
 	
-	if character.left_hand_ik:
-		character.left_hand_ik.start(true)
-		_add_limb_lock("lh")
-		character.left_hand_ik.stop()
-	if character.right_hand_ik:
-		character.right_hand_ik.start(true)
-		_add_limb_lock("rh")
-		character.right_hand_ik.stop()
-	if character.left_foot_ik:
-		character.left_foot_ik.start(true)
-		_add_limb_lock("lf")
-		character.left_foot_ik.stop()
-	if character.right_foot_ik:
-		character.right_foot_ik.start(true)
-		_add_limb_lock("rf")
-		character.right_foot_ik.stop()
+	var t0 := character.global_transform
+	var t1: Transform3D = start_pose["global_transform"]
 	
-	character.bone_sim.active = true
-	character.run_bone_sim(true)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	
+	var tween_duration := 1.0
+	
+	# Position
+	tween.tween_property(
+		character,
+		"global_position",
+		t1.origin,
+		tween_duration
+	)
+
+	# Rotation
+	tween.tween_method(
+		func(alpha: float) -> void:
+			var basis := t0.basis.slerp(t1.basis, alpha)
+			character.global_basis = basis
+	,
+	0.0, 1.0, tween_duration)
+	
+	# Bone rotation
+	tween.tween_method(
+		func(alpha: float) -> void:
+			for bone_idx in target_transforms.keys():
+				var bone_t0: Transform3D = start_transforms[bone_idx]
+				var bone_t1: Transform3D = target_transforms[bone_idx]
+
+				var bone_basis := bone_t0.basis.slerp(bone_t1.basis, alpha)
+				var bone_pos := bone_t0.origin.lerp(bone_t1.origin, alpha)
+				skeleton.set_bone_global_pose(bone_idx, Transform3D(bone_basis, bone_pos))
+	,
+	0.0, 1.0, tween_duration)
+
+	await tween.finished
+	
+	character.collision_shape.disabled = true
+	character.velocity = Vector3.ZERO
+	
+	_add_limb_lock("lh")
+	_add_limb_lock("rh")
+	_add_limb_lock("lf")
+	_add_limb_lock("rf")
+
 
 func exit_climb():
 	attached_holds = {"lh":null, "rh":null, "lf":null, "rf":null}
 	_remove_limb_locks()
 	route = null
-
-func move_character_to_start(start_holds: Dictionary, start_pos: Node3D, duration := 1.0) -> void:
-	var t0 := character.global_transform
-	var t1 := start_pos.global_transform
-
-	# Reset IK influences to 0
-	_set_all_ik_strength(0.0)
-
-	# Start IK solvers but at zero influence
-	_start_enabled_iks(start_holds)
-
-	# -------------------------
-	# Create the tween
-	# -------------------------
-	var tween := create_tween()
-	tween.set_parallel(true)
-	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-
-	# ---- POSITION LERP ----
-	tween.tween_property(
-		character,
-		"global_position",
-		t1.origin,
-		duration
-	)
-
-	# ---- ROTATION SLERP ----
-	tween.tween_method(
-		func(alpha):
-			var new_basis := t0.basis.slerp(t1.basis, alpha)
-			character.global_transform = Transform3D(
-				new_basis,
-				character.global_position
-			)
-	,
-	0.0, 1.0, duration)
-
-	# ---- IK INFLUENCE LERP (0 → 1 over first 0.5s) ----
-	var ik_duration = min(0.5, duration)
-	tween.tween_method(
-		func(a):
-			_set_all_ik_strength(a)
-	,
-	0.0, 1.0, ik_duration)
-
-	# -------------------------
-	# UPDATE IK TARGETS EVERY FRAME
-	# -------------------------
-	var update_tween := create_tween().set_trans(Tween.TRANS_LINEAR)
-	update_tween.tween_method(
-		func(_unused):
-			_update_ik_targets(start_holds)
-	,
-	0.0, 1.0, duration)
-	# The method is called once per frame over the tween
-
-	# -------------------------
-	# Wait for all tweens to finish
-	# -------------------------
-	await tween.finished
-	await update_tween.finished
 
 func _start_enabled_iks(start_holds: Dictionary) -> void:
 	if character.left_hand_ik and start_holds["lh"]:
@@ -186,13 +175,13 @@ func _set_all_ik_strength(value: float) -> void:
 
 func _update_ik_targets(holds: Dictionary) -> void:
 	if holds["lh"]:
-		left_hand_target.global_transform = holds["lh"].get_hand_grab_transform()
+		left_hand_target.global_transform = holds["lh"].get_grab_transform()
 	if holds["rh"]:
-		right_hand_target.global_transform = holds["rh"].get_hand_grab_transform()
+		right_hand_target.global_transform = holds["rh"].get_grab_transform()
 	if holds["lf"]:
-		left_foot_target.global_transform = holds["lf"].get_foot_grab_transform()
+		left_foot_target.global_transform = holds["lf"].get_grab_transform()
 	if holds["rf"]:
-		right_foot_target.global_transform = holds["rf"].get_foot_grab_transform()
+		right_foot_target.global_transform = holds["rf"].get_grab_transform()
 
 func _add_limb_lock(limb: String) -> void:
 
@@ -227,7 +216,7 @@ func _remove_limb_locks() -> void:
 
 # This function saves current joint angular spring stiffness and damping for all joints
 func save_joint_params() -> void:
-	for joint in joints:
+	for joint in character.joints.values():
 		var joint_name = joint.name
 		var angular_spring_stiffness: Vector3 = Vector3(joint.get_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS), joint.get_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS), joint.get_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_STIFFNESS))
 		var angular_spring_damping: Vector3 = Vector3(joint.get_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING), joint.get_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING), joint.get_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING))
@@ -238,7 +227,7 @@ func save_joint_params() -> void:
 
 # This function applies joint angular spring stiffness and damping for all joints
 func apply_joint_params(joint_params: Dictionary) -> void:
-	for joint in joints:
+	for joint in character.joints.values():
 		var stiffness = joint_params[joint.name].stiffness
 		var damping = joint_params[joint.name].damping
 		
@@ -252,13 +241,14 @@ func apply_joint_params(joint_params: Dictionary) -> void:
 
 
 func update_climbing(_delta: float) -> void:
+	saved_joint_angles = planner.get_IK_skeleton_joint_angles()
 	var omega_IK = get_omega_IK()
 	try_reach_limbs(omega_IK)
 	try_reach_pose(omega_IK)
 	try_grab()
 
 func try_reach_limbs(omega_IK: Dictionary) -> void:
-	for joint in joints:
+	for joint in character.joints.values():
 		if joint.name in omega_IK:
 			var omega = omega_IK[joint.name]
 			set_joint_velocity(joint, omega)
@@ -267,9 +257,9 @@ func try_reach_pose(omega_IK: Dictionary) -> void:
 	if not reach_pose:
 		return
 	
-	for joint in joints:
+	for joint in character.joints.values():
 		if (joint.name not in omega_IK) and (saved_joint_angles.has(joint.name)):
-			var omega = compute_pose_driven_joint_velocity(joint, saved_joint_angles)
+			var omega = compute_pose_driven_joint_velocity(joint, saved_joint_angles[joint.name])
 			set_joint_velocity(joint, omega)
 			# Visualize velocity
 			var vel_world = joint.global_transform.basis * omega
@@ -370,7 +360,7 @@ func get_reaching_joints() -> Array[Generic6DOFJoint3D]:
 	if reaching_right_foot and not attached_holds["rf"]:
 		reaching_joint_names.append_array(["RightHip Joint", "RightKnee Joint", "RightAnkle Joint"])
 	
-	for joint in joints:
+	for joint in character.joints.values():
 		if joint.name in reaching_joint_names:
 			reaching_joints.append(joint)
 
@@ -465,6 +455,10 @@ func get_bone_world_transform(bone_name: String) -> Transform3D:
 	
 	return bone_world
 
+func compute_IK_character_physical_joint_angles() -> Dictionary:
+	planner.get_IK_skeleton_joint_angles()
+	return {}
+
 func get_joint_rot_quaternion(joint: Generic6DOFJoint3D) -> Quaternion:
 	var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
 	var node_b: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
@@ -485,24 +479,19 @@ func get_joint_rot_quaternion(joint: Generic6DOFJoint3D) -> Quaternion:
 
 func save_joint_angles() -> Dictionary:
 	var result := {}
-	if joints == null:
-		return result
+	if character.joints.values() == null:
+		push_error("No joints in save_joint_angles")
 
-	for joint in joints:
+	for joint in character.joints.values():
 		var q : Quaternion = get_joint_rot_quaternion(joint)
 
-		result[joint.name] = {
-			"qx": q.x,
-			"qy": q.y,
-			"qz": q.z,
-			"qw": q.w
-		}
+		result[joint.name] = q
 
 	saved_joint_angles = result
 	return result
 
 # This function returns P and D in world space
-func get_PD_data(joint: Generic6DOFJoint3D, target: Dictionary) -> Dictionary:
+func get_PD_data(joint: Generic6DOFJoint3D, target: Quaternion) -> Dictionary:
 
 	var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
 	var node_b: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
@@ -514,14 +503,11 @@ func get_PD_data(joint: Generic6DOFJoint3D, target: Dictionary) -> Dictionary:
 	var q_current: Quaternion = get_joint_rot_quaternion(joint)
 
 	# ---- TARGET QUATERNION (joint-local) ----
-	var s = target.get(joint.name, null)
-	if s == null:
+	if target == null:
 		return {"error_vec": Vector3.ZERO, "angular_velocity": Vector3.ZERO, "error_integral": Vector3.ZERO}
 
-	var q_target := Quaternion(s["qx"], s["qy"], s["qz"], s["qw"]).normalized()
-
 	# ---- ROTATION ERROR (current → target) ----
-	var q_delta: Quaternion = (q_current.inverse() * q_target).normalized()
+	var q_delta: Quaternion = (q_current.inverse() * target).normalized()
 	if q_delta.w < 0.0:
 		q_delta = -q_delta
 	
@@ -534,7 +520,7 @@ func get_PD_data(joint: Generic6DOFJoint3D, target: Dictionary) -> Dictionary:
 		var error_angle := 2.0 * atan2(v_len, q_delta.w)
 		error_vec = (v / v_len) * error_angle
 		error_vec = joint.global_transform.basis * error_vec
-
+	
 	# ---- ANGULAR VELOCITY (DERIVATIVE TERM) ----
 	var w_a = node_a.angular_velocity
 	var w_b = node_b.angular_velocity
@@ -576,21 +562,21 @@ var JOINT_CONSTANTS = {
 	"LeftUpperChest Joint":	{ "max_torque": 120.0, "omega_max": Vector3(0.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.0, 20.0, 100.0), "damping": Vector3(0.0, 30.0, 30.0) }, # x = twist, y = fwd/back, z = up/down
 	"LeftShoulder Joint":	{ "max_torque": 80.0, "omega_max": Vector3(1.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.001, 0.001, 0.001), "damping": Vector3(20.0, 20.0, 20.0) }, # x = twist, y = forward / back, z = lateral raise
 	"LeftElbow Joint":		{ "max_torque": 60.0, "omega_max": Vector3(0.0, 3.0, 0.0), "error_scale": Vector3(1.0, 0.5, 1.0), "stiffness": Vector3(0.0, 0.01, 0.0), "damping": Vector3(0.0, 10.0, 0.0) },
-	"LeftWrist Joint":		{ "max_torque": 30.0, "omega_max": Vector3(0.5, 0.5, 1.2), "error_scale": Vector3(1.0, 1.0, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(5.0, 5.0, 5.0) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
+	"LeftWrist Joint":		{ "max_torque": 100.0, "omega_max": Vector3(0.5, 0.5, 1.2), "error_scale": Vector3(1.0, 1.0, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(5.0, 5.0, 5.0) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
 	"RightUpperChest Joint":{ "max_torque": 120.0, "omega_max": Vector3(0.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.0, 20.0, 100.0), "damping": Vector3(0.0, 30.0, 30.0) }, # x = twist, y = fwd/back, z = up/down
 	"RightShoulder Joint":	{ "max_torque": 80.0, "omega_max": Vector3(1.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(20.0, 20.0, 20.0) }, # x = twist, y = forward / back, z = lateral raise
 	"RightElbow Joint":		{ "max_torque": 60.0, "omega_max": Vector3(0.0, 3.0, 0.0), "error_scale": Vector3(1.0, 0.5, 1.0), "stiffness": Vector3(0.0, 0.01, 0.0), "damping": Vector3(0.0, 10.0, 0.0) },
-	"RightWrist Joint":		{ "max_torque": 30.0, "omega_max": Vector3(0.5, 0.5, 1.2), "error_scale": Vector3(1.0, 1.0, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(5.0, 5.0, 5.0) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
+	"RightWrist Joint":		{ "max_torque": 100.0, "omega_max": Vector3(0.5, 0.5, 1.2), "error_scale": Vector3(1.0, 1.0, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(5.0, 5.0, 5.0) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
 	"LeftHip Joint":		{ "max_torque": 150.0, "omega_max": Vector3(4.0, 1.0, 4.0), "error_scale": Vector3(0.75, 1.0, 0.75), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(50.0, 50.0, 50.0) }, # Here y is the twist axis
 	"LeftKnee Joint":		{ "max_torque": 120.0, "omega_max": Vector3(4.0, 0.0, 0.0), "error_scale": Vector3(0.5, 1.0, 1.0), "stiffness": Vector3(0.01, 0.0, 0.0), "damping": Vector3(30.0, 0.0, 0.0) },
-	"LeftAnkle Joint":		{ "max_torque": 50.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
+	"LeftAnkle Joint":		{ "max_torque": 100.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
 	"RightHip Joint":		{ "max_torque": 150.0, "omega_max": Vector3(4.0, 1.0, 4.0), "error_scale": Vector3(0.75, 1.0, 0.75), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(50.0, 50.0, 50.0) },
 	"RightKnee Joint":		{ "max_torque": 120.0, "omega_max": Vector3(4.0, 0.0, 0.0), "error_scale": Vector3(0.5, 1.0, 1.0), "stiffness": Vector3(0.01, 0.0, 0.0), "damping": Vector3(30.0, 0.0, 0.0) },
-	"RightAnkle Joint":		{ "max_torque": 50.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
+	"RightAnkle Joint":		{ "max_torque": 100.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
 }
 
 func update_joint_torque_motors(target: Dictionary) -> void:
-	if joints == null or target == null:
+	if character.joints.values() == null or target == null:
 		return
 	
 	# World frame gravity compensations for root supported joints
@@ -601,7 +587,7 @@ func update_joint_torque_motors(target: Dictionary) -> void:
 	# OR
 	# 2. Use effective inertia in velocity control (this is what the velocity motors do). Might be simpler than 1. (at least the concept is simpler) but still need to estimate effective inertia which might not be easy
 	
-	for joint in joints:
+	for joint in character.joints.values():
 		var joint_name = joint.name
 		if not target.has(joint_name):
 			continue
@@ -613,7 +599,7 @@ func update_joint_torque_motors(target: Dictionary) -> void:
 		
 		var Kd: Vector3 = JOINT_CONSTANTS[joint_name].Kd
 
-		var res = get_PD_data(joint, target)
+		var res = get_PD_data(joint, target[joint_name])
 		var error_vec = res["error_vec"]
 		var angular_velocity_world = res["angular_velocity"]
 		
@@ -653,22 +639,22 @@ func update_joint_torque_motors(target: Dictionary) -> void:
 		node_b.external_torque += target_torque_world
 
 func update_joint_velocity_motors(target: Dictionary) -> void:
-	if joints == null or target == null:
+	if character.joints.values() == null or target == null:
 		return
 	
 	var reaching_joints = get_reaching_joints()
 	
-	for joint in joints:
+	for joint in character.joints.values():
 		if (not target.has(joint.name)) or (joint in reaching_joints):
 			continue
 		
-		var omega_target_joint = compute_pose_driven_joint_velocity(joint, target)
+		var omega_target_joint = compute_pose_driven_joint_velocity(joint, target[joint.name])
 		set_joint_velocity(joint, omega_target_joint)
 		
 		var vel_world = joint.global_transform.basis * omega_target_joint
 		DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
 
-func compute_pose_driven_joint_velocity(joint: Generic6DOFJoint3D, target: Dictionary) -> Vector3:
+func compute_pose_driven_joint_velocity(joint: Generic6DOFJoint3D, target: Quaternion) -> Vector3:
 	var B_joint: Basis = joint.global_basis
 		
 	var res = get_PD_data(joint, target)
@@ -778,11 +764,11 @@ func compute_rotation_joint_velocities(J: Dictionary, w_desired: Vector3, gain :
 
 	return velocities
 
-func enable_velocity_motors(joints_to_enable: Array[Generic6DOFJoint3D]) -> void:
+func enable_velocity_motors(joints_to_enable: Array) -> void:
 	print("Enabling:")
 	for joint in joints_to_enable:
 		print(joint.name)
-		var max_torque = JOINT_CONSTANTS[joint.name].max_torque
+		var max_torque = JOINT_CONSTANTS[joint.name].max_torque * 5
 		
 		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
 		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
@@ -792,7 +778,7 @@ func enable_velocity_motors(joints_to_enable: Array[Generic6DOFJoint3D]) -> void
 		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
 		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_FORCE_LIMIT, max_torque)
 
-func disable_velocity_motors(joints_to_disable: Array[Generic6DOFJoint3D]) -> void:
+func disable_velocity_motors(joints_to_disable: Array) -> void:
 	for joint in joints_to_disable:
 		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
 		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
@@ -943,7 +929,7 @@ func _on_reach_pose() -> void:
 		reach_pose = false
 		
 		#These lines are currently for joint velocity motors specifically
-		disable_velocity_motors(joints)
+		disable_velocity_motors(character.joints.values())
 		#apply_joint_params(initial_joint_params)
 		
 		var reaching_joints = get_reaching_joints()
@@ -953,7 +939,7 @@ func _on_reach_pose() -> void:
 		reach_pose = true
 		
 		#These lines are currently for joint velocity motors specifically
-		enable_velocity_motors(joints)
+		enable_velocity_motors(character.joints.values())
 		#apply_joint_params(JOINT_CONSTANTS)
 
 func _on_generic_value_changed(value: float) -> void:

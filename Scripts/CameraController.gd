@@ -1,105 +1,92 @@
 class_name CameraController
 extends Node3D
 
-var sensitivity := 0.002
+var initialized := false
+
+var sensitivity := 0.001
 var fly_speed := 8.0
 var fly_speed_fast := 20.0
 
 var yaw := 0.0
 var pitch := 0.0
 
-var player: CharacterBody3D
-var camera: Camera3D
-var camera_pivot = Node3D
 
-var third_person_transform: Transform3D
+@onready var camera: Camera3D = $ThirdPersonRig/CameraMount/Camera3D
+@onready var third_person_rig: Node3D = $ThirdPersonRig
+@onready var third_person_mount: Node3D = $ThirdPersonRig/CameraMount
 
-# state machine for camera
-enum CameraState { THIRD_PERSON, FREE_FLY }
+enum CameraState {THIRD_PERSON, FIRST_PERSON, FREE_FLY, TRANSITION}
 var camera_state: CameraState = CameraState.THIRD_PERSON
 
-func init(p: CharacterBody3D):
-	player = p
-	camera = p.camera_node
-	camera_pivot = p.camera_pivot
-	
-	# sync camera rotation values
-	var e = camera.global_transform.basis.get_euler()
-	pitch = e.x
-	yaw = e.y
-
+var player: Node3D
 
 func _ready():
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	camera_state = CameraState.THIRD_PERSON
+	#camera.global_transform = third_person_mount.global_transform
+	initialized = true
 
+func init(p: Node3D) -> void:
+	player = p
 
 func _input(event):
-	if not player:
+	if camera_state == CameraState.TRANSITION:
 		return
 	
 	match camera_state:
-
 		CameraState.THIRD_PERSON:
-			_handle_third_person_input(event)
+			_input_third_person(event)
 
 		CameraState.FREE_FLY:
-			_handle_free_fly_input(event)
+			_input_free_fly(event)
 
-func _handle_third_person_input(event):
+func _input_third_person(event):
 	if event is InputEventMouseMotion:
-		# player rotates horizontally
+		# Horizontal mouse = player yaw
 		player.rotate_y(-event.relative.x * sensitivity)
 
-		# pitch rotates camera_pivot vertically
+		# Vertical mouse = camera pitch
 		pitch = clamp(
-			pitch + event.relative.y * sensitivity / 4.0,
+			pitch + event.relative.y * sensitivity,
 			deg_to_rad(-50),
 			deg_to_rad(50)
 		)
-		camera_pivot.global_rotation.x = pitch
 
-func _handle_free_fly_input(event):
-	var free_mouse = true
-	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		free_mouse = false
-	#var holding_space := Input.is_action_pressed("Jump")
-
-	# Mouse look (disabled while holding space for dragging)
-	if event is InputEventMouseMotion and not free_mouse:
+func _input_free_fly(event):
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= event.relative.x * sensitivity
 		pitch = clamp(
 			pitch - event.relative.y * sensitivity,
 			deg_to_rad(-89),
 			deg_to_rad(89)
 		)
-		camera.global_rotation = Vector3(pitch, yaw, 0)
 
-	# Mouse mode toggling
 	if Input.is_action_just_pressed("Jump"):
 		if Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
 			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 		else:
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	#if Input.is_action_just_released("Jump"):
-	#	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
 
 func _physics_process(delta):
-	if not player:
+	if not initialized:
 		return
 	
 	match camera_state:
+		CameraState.TRANSITION:
+			return
 		CameraState.THIRD_PERSON:
-			_update_third_person(delta)
+			_update_third_person()
 		CameraState.FREE_FLY:
 			_update_free_fly(delta)
 
 
-func _update_third_person(_delta):
-	#No need to do anything really
-	return
+func _update_third_person():
+	third_person_rig.rotation.x = pitch
 
 
 func _update_free_fly(delta):
+	camera.global_rotation = Vector3(pitch, yaw, 0)
+	
 	var dir := Vector3.ZERO
 
 	var forward := -camera.global_transform.basis.z
@@ -114,37 +101,64 @@ func _update_free_fly(delta):
 	if Input.is_action_pressed("Right"):
 		dir += right
 
-	dir = dir.normalized()
+	if dir != Vector3.ZERO:
+		dir = dir.normalized()
 
 	var speed = fly_speed
 	if Input.is_action_pressed("Sprint"):
 		speed = fly_speed_fast
 
 	camera.global_translate(dir * speed * delta)
+	
 
 func enter_free_fly():
-	third_person_transform = camera.global_transform
+	if camera_state == CameraState.FREE_FLY:
+		return
+	
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
 	camera_state = CameraState.FREE_FLY
 
-	# Start free-fly exactly at the current third-person camera transform
-	#camera.global_transform = camera_pivot.global_transform
+	var mount_euler := third_person_mount.global_basis.get_euler()
+	yaw = mount_euler.y
+	pitch = mount_euler.x
 
-	# Sync yaw/pitch from current camera transform
-	var e = camera.global_transform.basis.get_euler()
-	yaw = e.y
-	pitch = e.x
-
+func enter_third_person():
+	if camera_state == CameraState.THIRD_PERSON:
+		return
+	
+	camera_state = CameraState.TRANSITION
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	
+	var global := camera.global_transform
+	_reparent_camera(third_person_mount)
+	camera.global_transform = global
+	
+	third_person_rig.basis = Basis.IDENTITY
 
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.set_ease(Tween.EASE_IN_OUT)
 
-func exit_free_fly():
+	tween.tween_property(
+		camera,
+		"transform",
+		Transform3D.IDENTITY,
+		0.5
+	)
+
+	await tween.finished
+
 	camera_state = CameraState.THIRD_PERSON
+	
+	var mount_euler := third_person_mount.global_basis.get_euler()
+	var rig_euler := third_person_rig.global_basis.get_euler()
+	yaw = mount_euler.y
+	pitch = rig_euler.x
 
-	camera.global_transform = third_person_transform
 
-	# Sync yaw/pitch to match pivot's rotation
-	var e = camera_pivot.global_transform.basis.get_euler()
-	yaw = e.y
-	pitch = camera_pivot.global_rotation.x
+func _reparent_camera(new_parent: Node3D) -> void:
+	if camera.get_parent() == new_parent:
+		return
 
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	camera.reparent(new_parent)

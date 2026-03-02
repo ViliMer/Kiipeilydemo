@@ -11,8 +11,7 @@ var camera_node: Camera3D
 
 func init(character_ref: CharacterBody3D) -> void:
 	character = character_ref
-	camera_node = character_ref.camera_node
-	pass
+	camera_node = character_ref.camera_controller.camera
 
 func try_grab():
 	var mouse_pos := get_viewport().get_mouse_position()

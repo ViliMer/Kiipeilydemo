@@ -38,7 +38,6 @@ func _ready():
 		btn.toggled.connect(_on_motor_mode_toggled.bind(btn))
 
 var character: CharacterBody3D
-var joints: Array[Generic6DOFJoint3D]
 
 var saved_joint_angles: Dictionary
 var previous_joint_angles := {}
@@ -65,7 +64,6 @@ var joints_to_disable: Array[String] = ["Root Joint"]
 
 func init(c: CharacterBody3D):
 	character = c
-	joints = character.get_joints()
 
 func _input(_event: InputEvent) -> void:
 	if not character.state == character.PlayerState.TEST_JOINT_MOTORS:
@@ -82,7 +80,7 @@ func enable():
 	character.anim.stop()
 	character.bone_sim.active = true
 	
-	for joint in joints:
+	for joint in character.joints.values():
 		if joint.name in joints_to_disable:
 			var bone = joint.get_node_or_null(joint.node_b)
 			if joint.name == "Root Joint":
@@ -130,10 +128,10 @@ func update_motor_test(_delta: float):
 
 func save_joint_angles(joint_names: Array[String]) -> Dictionary:
 	var result := {}
-	if joints == null:
+	if character.joints.values() == null:
 		return result
 
-	for joint in joints:
+	for joint in character.joints.values():
 		if joint.name not in joint_names:
 			continue
 		var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
@@ -162,11 +160,12 @@ func save_joint_angles(joint_names: Array[String]) -> Dictionary:
 	return result
 
 func apply_torque(torque: Vector3, joint_names: Array[String]) -> void:
-	for joint in joints:
+	for joint in character.joints.values():
 		if joint.name not in joint_names:
 			continue
-		var node_a := joint.get_node_or_null(joint.node_a)
-		var node_b := joint.get_node_or_null(joint.node_b)
+		
+		var node_a := joint.get_node_or_null(joint.node_a) as PhysicalBone3D
+		var node_b := joint.get_node_or_null(joint.node_b) as PhysicalBone3D
 		if node_a == null or node_b == null:
 			continue
 		var torque_world = joint.global_transform.basis * torque
@@ -180,7 +179,7 @@ func apply_torque(torque: Vector3, joint_names: Array[String]) -> void:
 		)
 
 func apply_velocity(velocity: Vector3, joint_names: Array[String]) -> void:
-	for joint in joints:
+	for joint in character.joints.values():
 		if joint.name not in joint_names:
 			continue
 		var velocity_world = joint.global_transform.basis * velocity
@@ -278,12 +277,12 @@ var JOINT_CONSTANTS = {																		#Vector3(5.0, 5.0, 5.0)
 }
 
 func update_velocity_torque_motors(target: Dictionary) -> void:
-	if joints == null or target == null:
+	if character.joints.values() == null or target == null:
 		return
 	
 	var gravity_compensations = character.compute_gravity_compensation_for_joints(free_joints)
 
-	for joint in joints:
+	for joint in character.joints.values():
 		var joint_name = joint.name
 		if not target.has(joint_name):
 			continue
@@ -337,12 +336,12 @@ func update_velocity_torque_motors(target: Dictionary) -> void:
 		node_b.external_torque += target_torque_world
 
 func update_torque_motors(target: Dictionary, _delta: float) -> void:
-	if joints == null or target == null:
+	if character.joints.values() == null or target == null:
 		return
 	
 	var gravity_compensations = character.compute_gravity_compensation_for_joints(free_joints)
 
-	for joint in joints:
+	for joint in character.joints.values():
 		var joint_name = joint.name
 		if not target.has(joint_name):
 			continue
@@ -384,10 +383,10 @@ func update_torque_motors(target: Dictionary, _delta: float) -> void:
 
 
 func update_velocity_motors(target: Dictionary) -> void:
-	if joints == null or target == null:
+	if character.joints.values() == null or target == null:
 		return
 
-	for joint in joints:
+	for joint in character.joints.values():
 
 		var joint_name = joint.name
 		if not target.has(joint_name):
@@ -436,10 +435,10 @@ func restore_node(node_name: String) -> void: # This doesn't actually work. Woul
 		stored_nodes.erase(node_name)
 
 func enable_velocity_motors(joint_names: Array[String]) -> void:
-	if joints == null:
+	if character.joints.values() == null:
 		return
 	
-	for joint in joints:
+	for joint in character.joints.values():
 		if joint.name not in joint_names:
 			continue
 		
@@ -455,7 +454,7 @@ func enable_velocity_motors(joint_names: Array[String]) -> void:
 
 func disable_velocity_motors(joint_names: Array[String]) -> void:
 
-	for joint in joints:
+	for joint in character.joints.values():
 		if joint.name not in joint_names:
 			continue
 		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, false)
