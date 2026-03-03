@@ -153,26 +153,6 @@ func exit_climb():
 	_remove_limb_locks()
 	route = null
 
-func _start_enabled_iks(start_holds: Dictionary) -> void:
-	if character.left_hand_ik and start_holds["lh"]:
-		character.left_hand_ik.start()
-	if character.right_hand_ik and start_holds["rh"]:
-		character.right_hand_ik.start()
-	if character.left_foot_ik and start_holds["lf"]:
-		character.left_foot_ik.start()
-	if character.right_foot_ik and start_holds["rf"]:
-		character.right_foot_ik.start()
-
-func _set_all_ik_strength(value: float) -> void:
-	if character.left_hand_ik:
-		character.left_hand_ik.influence = value
-	if character.right_hand_ik:
-		character.right_hand_ik.influence = value
-	if character.left_foot_ik:
-		character.left_foot_ik.influence = value
-	if character.right_foot_ik:
-		character.right_foot_ik.influence = value
-
 func _update_ik_targets(holds: Dictionary) -> void:
 	if holds["lh"]:
 		left_hand_target.global_transform = holds["lh"].get_grab_transform()
@@ -272,25 +252,25 @@ func try_grab() -> void:
 	if reaching_left_hand and not attached_holds["lh"]:
 		var dist = get_bone_world_transform("LeftHand").origin.distance_to(left_hand_target.global_position)
 		if dist <= threshold_distance:
-			grab_hold_new("lh")
+			grab_hold("lh")
 
 	# RIGHT HAND
 	if reaching_right_hand and not attached_holds["rh"]:
 		var dist = get_bone_world_transform("RightHand").origin.distance_to(right_hand_target.global_position)
 		if dist <= threshold_distance:
-			grab_hold_new("rh")
+			grab_hold("rh")
 
 	# LEFT FOOT
 	if reaching_left_foot and not attached_holds["lf"]:
 		var dist = get_bone_world_transform("LeftFoot").origin.distance_to(left_foot_target.global_position)
 		if dist <= threshold_distance:
-			grab_hold_new("lf")
+			grab_hold("lf")
 
 	# RIGHT FOOT
 	if reaching_right_foot and not attached_holds["rf"]:
 		var dist = get_bone_world_transform("RightFoot").origin.distance_to(right_foot_target.global_position)
 		if dist <= threshold_distance:
-			grab_hold_new("rf")
+			grab_hold("rf")
 
 func get_omega_IK() -> Dictionary:
 	
@@ -371,7 +351,7 @@ func set_joint_velocity(joint: Generic6DOFJoint3D, omega: Vector3):
 	joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega.y)
 	joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega.z)
 
-func grab_hold_new(code: String) -> void:
+func grab_hold(code: String) -> void:
 	print("Grab (new)")
 	var IK_pose = character.IK_modified_bone_transforms
 	var bone_index: int
@@ -397,28 +377,6 @@ func grab_hold_new(code: String) -> void:
 	_add_limb_lock(code)
 	attached_holds[code] = target_holds[code]
 
-
-func grab_hold(code: String) -> void:
-	print("Grab")
-	character.run_bone_sim(false)
-	copy_physical_to_skeleton()
-	
-	match code:
-		"lh":	
-			character.left_hand_ik.start(true)
-		"rh":
-			character.right_hand_ik.start(true)
-		"lf":
-			character.left_foot_ik.start(true)
-		"rf":
-			character.right_foot_ik.start(true)
-		_:
-			push_error("Error in limb_grab(): unknown code '%s'" % code)
-			return
-	
-	_add_limb_lock(code)
-	attached_holds[code] = target_holds[code]
-	character.run_bone_sim(true)
 
 func release_limb(limb: String) -> void:
 	var bone_name: String
