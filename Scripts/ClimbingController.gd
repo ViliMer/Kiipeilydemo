@@ -272,25 +272,25 @@ func try_grab() -> void:
 	if reaching_left_hand and not attached_holds["lh"]:
 		var dist = get_bone_world_transform("LeftHand").origin.distance_to(left_hand_target.global_position)
 		if dist <= threshold_distance:
-			grab_hold("lh")
+			grab_hold_new("lh")
 
 	# RIGHT HAND
 	if reaching_right_hand and not attached_holds["rh"]:
 		var dist = get_bone_world_transform("RightHand").origin.distance_to(right_hand_target.global_position)
 		if dist <= threshold_distance:
-			grab_hold("rh")
+			grab_hold_new("rh")
 
 	# LEFT FOOT
 	if reaching_left_foot and not attached_holds["lf"]:
 		var dist = get_bone_world_transform("LeftFoot").origin.distance_to(left_foot_target.global_position)
 		if dist <= threshold_distance:
-			grab_hold("lf")
+			grab_hold_new("lf")
 
 	# RIGHT FOOT
 	if reaching_right_foot and not attached_holds["rf"]:
 		var dist = get_bone_world_transform("RightFoot").origin.distance_to(right_foot_target.global_position)
 		if dist <= threshold_distance:
-			grab_hold("rf")
+			grab_hold_new("rf")
 
 func get_omega_IK() -> Dictionary:
 	
@@ -370,6 +370,33 @@ func set_joint_velocity(joint: Generic6DOFJoint3D, omega: Vector3):
 	joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega.x)
 	joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega.y)
 	joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega.z)
+
+func grab_hold_new(code: String) -> void:
+	print("Grab (new)")
+	var IK_pose = character.IK_modified_bone_transforms
+	var bone_index: int
+	match code:
+		"lh":	
+			bone_index = 10
+		"rh":
+			bone_index = 29
+		"lf":
+			bone_index = 47
+		"rf":
+			bone_index = 51
+		_:
+			push_error("Error in grab_hold(): unknown code '%s'" % code)
+			return
+	
+	var IK_bone_transform = IK_pose[bone_index]
+	var IK_bone_global = IK_skeleton.global_transform * IK_bone_transform
+	
+	var skeleton_bone_transform = skeleton.global_transform.affine_inverse() * IK_bone_global
+	skeleton.set_bone_global_pose(bone_index, skeleton_bone_transform)
+	
+	_add_limb_lock(code)
+	attached_holds[code] = target_holds[code]
+
 
 func grab_hold(code: String) -> void:
 	print("Grab")
