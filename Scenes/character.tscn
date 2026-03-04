@@ -20015,30 +20015,6 @@ angular_spring_y/enabled = true
 angular_spring_y/stiffness = 0.001
 angular_spring_y/damping = 0.2
 
-[node name="Right Hand IK" type="SkeletonIK3D" parent="Imported Character/Rig/GeneralSkeleton" unique_id=1389442939]
-root_bone = &"RightShoulder"
-tip_bone = &"RightHand"
-target_node = NodePath("../../../../Right Hand Target")
-max_iterations = 20
-
-[node name="Left Hand IK" type="SkeletonIK3D" parent="Imported Character/Rig/GeneralSkeleton" unique_id=1438114601]
-root_bone = &"LeftShoulder"
-tip_bone = &"LeftHand"
-target_node = NodePath("../../../../Left Hand Target")
-max_iterations = 20
-
-[node name="Right Foot IK" type="SkeletonIK3D" parent="Imported Character/Rig/GeneralSkeleton" unique_id=1872149759]
-root_bone = &"RightUpperLeg"
-tip_bone = &"RightFoot"
-target_node = NodePath("../../../../Right Foot Target")
-max_iterations = 20
-
-[node name="Left Foot IK" type="SkeletonIK3D" parent="Imported Character/Rig/GeneralSkeleton" unique_id=635202742]
-root_bone = &"LeftUpperLeg"
-tip_bone = &"LeftFoot"
-target_node = NodePath("../../../../Left Foot Target")
-max_iterations = 20
-
 [node name="AnimationPlayer" type="AnimationPlayer" parent="Imported Character" unique_id=115847838]
 libraries/ = SubResource("AnimationLibrary_y13l5")
 

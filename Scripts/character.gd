@@ -24,10 +24,6 @@ var gravity_vector = g_dir * gravity
 @onready var bone_sim: PhysicalBoneSimulator3D = $"Imported Character/Rig/GeneralSkeleton/PhysicalBoneSimulator3D"
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
 
-#@onready var right_hand_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Right Hand IK"
-#@onready var left_hand_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Left Hand IK"
-#@onready var right_foot_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Right Foot IK"
-#@onready var left_foot_ik: SkeletonIK3D = $"Imported Character/Rig/GeneralSkeleton/Left Foot IK"
 @onready var right_hand_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/RightHandIK"
 @onready var left_hand_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/LeftHandIK"
 @onready var spine_to_right_shoulder_ik: CCDIK3D = $"IK Character/Rig/GeneralSkeleton/SpineToRightShoulderIK"
