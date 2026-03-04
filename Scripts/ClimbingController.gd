@@ -355,6 +355,7 @@ func grab_hold(code: String) -> void:
 	print("Grab (new)")
 	var IK_pose = character.IK_modified_bone_transforms
 	var bone_index: int
+	
 	match code:
 		"lh":	
 			bone_index = 10
@@ -368,11 +369,18 @@ func grab_hold(code: String) -> void:
 			push_error("Error in grab_hold(): unknown code '%s'" % code)
 			return
 	
+	var bone_name = skeleton.get_bone_name(bone_index)
+	var physical_bone_name: String = character.bone_names[bone_name]
+	
+	var physical_bone: PhysicalBone3D = character.bone_sim.find_child(physical_bone_name)
+	var offset_transform = character.bone_rotation_offsets[bone_name]
+	
 	var IK_bone_transform = IK_pose[bone_index]
 	var IK_bone_global = IK_skeleton.global_transform * IK_bone_transform
 	
-	var skeleton_bone_transform = skeleton.global_transform.affine_inverse() * IK_bone_global
-	skeleton.set_bone_global_pose(bone_index, skeleton_bone_transform)
+	var physical_bone_global_transform = IK_bone_global * offset_transform
+	
+	physical_bone.global_transform = physical_bone_global_transform
 	
 	_add_limb_lock(code)
 	attached_holds[code] = target_holds[code]
