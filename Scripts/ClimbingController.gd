@@ -890,22 +890,22 @@ func _on_left_hand_target_changed(value: int) -> void:
 	# To be specific, value is the index of the selected item in the dropdown menu. Should be the same as the index of the hold in route.get_holds()
 	var hold = route.get_holds()[value]
 	target_holds["lh"] = hold
-	left_hand_target.global_transform = hold.get_hand_grab_transform()
+	left_hand_target.global_transform = hold.get_grab_transform()
 
 func _on_right_hand_target_changed(value: int) -> void:
 	var hold = route.get_holds()[value]
 	target_holds["rh"] = hold
-	right_hand_target.global_transform = hold.get_hand_grab_transform()
+	right_hand_target.global_transform = hold.get_grab_transform()
 
 func _on_left_foot_target_changed(value: int) -> void:
 	var hold = route.get_holds()[value]
 	target_holds["lf"] = hold
-	left_foot_target.global_transform = hold.get_foot_grab_transform()
+	left_foot_target.global_transform = hold.get_grab_transform()
 
 func _on_right_foot_target_changed(value: int) -> void:
 	var hold = route.get_holds()[value]
 	target_holds["rf"] = hold
-	right_foot_target.global_transform = hold.get_foot_grab_transform()
+	right_foot_target.global_transform = hold.get_grab_transform()
 
 func _on_save_pose() -> void:
 	var res = save_joint_angles()
