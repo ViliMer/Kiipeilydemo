@@ -33,14 +33,22 @@ var reaching_right_hand = false
 var reaching_left_foot = false
 var reaching_right_foot = false
 
-var attached_holds = {
+var target_holds: Dictionary = {
 	"lh": null,
 	"rh": null,
 	"lf": null,
 	"rf": null
 }
 
-var target_holds = {
+# The reaching limbs, meaning hands and feet (physical bones)
+var limbs: Dictionary = {
+	"lh": null,
+	"rh": null,
+	"lf": null,
+	"rf": null
+}
+
+var attachments: Dictionary = {
 	"lh": null,
 	"rh": null,
 	"lf": null,
@@ -61,6 +69,11 @@ func init(character_ref: CharacterBody3D) -> void:
 	left_foot_target = character.get_node("Left Foot Target")
 	right_foot_target = character.get_node("Right Foot Target")
 	
+	limbs["lh"] = character.bone_sim.find_child("Physical Bone LeftHand")
+	limbs["rh"] = character.bone_sim.find_child("Physical Bone RightHand")
+	limbs["lf"] = character.bone_sim.find_child("Physical Bone LeftFoot")
+	limbs["rf"] = character.bone_sim.find_child("Physical Bone RightFoot")
+	
 	planner = ClimbingPlanner.new() # If there is some trouble later, I might need to add this as a child in the scene tree
 	add_child(planner)
 	planner.init(character)
@@ -76,14 +89,13 @@ func _input(_event: InputEvent) -> void:
 
 func enter_climb(new_route: Route):
 	route = new_route
-	attached_holds = route.get_starting_holds().duplicate(true)
 	target_holds = route.get_starting_holds().duplicate(true)
-	_update_ik_targets(target_holds)
+	update_ik_targets(target_holds)
 	
 	var start_pose = await planner.plan_start_pose(target_holds)
 	
-	await reach_start_pose(start_pose)
 	character.bone_sim.active = true
+	await reach_start_pose(start_pose)
 	character.run_bone_sim(true)
 
 func reach_start_pose(start_pose: Dictionary) -> void:
@@ -142,18 +154,20 @@ func reach_start_pose(start_pose: Dictionary) -> void:
 	character.collision_shape.disabled = true
 	character.velocity = Vector3.ZERO
 	
-	_add_limb_lock("lh")
-	_add_limb_lock("rh")
-	_add_limb_lock("lf")
-	_add_limb_lock("rf")
+	attach_limb("lh")
+	attach_limb("rh")
+	attach_limb("lf")
+	attach_limb("rf")
 
 
 func exit_climb():
-	attached_holds = {"lh":null, "rh":null, "lf":null, "rf":null}
-	_remove_limb_locks()
+	detach_limb("lh")
+	detach_limb("rh")
+	detach_limb("lf")
+	detach_limb("rf")
 	route = null
 
-func _update_ik_targets(holds: Dictionary) -> void:
+func update_ik_targets(holds: Dictionary) -> void:
 	if holds["lh"]:
 		left_hand_target.global_transform = holds["lh"].get_grab_transform()
 	if holds["rh"]:
@@ -162,37 +176,6 @@ func _update_ik_targets(holds: Dictionary) -> void:
 		left_foot_target.global_transform = holds["lf"].get_grab_transform()
 	if holds["rf"]:
 		right_foot_target.global_transform = holds["rf"].get_grab_transform()
-
-func _add_limb_lock(limb: String) -> void:
-
-	var bone_name: String
-	match limb:
-		"lh": bone_name = "Physical Bone LeftHand"
-		"rh": bone_name = "Physical Bone RightHand"
-		"lf": bone_name = "Physical Bone LeftFoot"
-		"rf": bone_name = "Physical Bone RightFoot"
-		_: return
-	
-	var physical_bone: PhysicalBone3D = character.bone_sim.find_child(bone_name)
-	
-	if physical_bone == null:
-		push_error("No physical bone found for %s" % bone_name)
-		return
-	
-	physical_bone.axis_lock_linear_x = true
-	physical_bone.axis_lock_linear_y = true
-	physical_bone.axis_lock_linear_z = true
-	if limb == "lh" or limb == "rh":
-		physical_bone.axis_lock_angular_x = true
-		physical_bone.axis_lock_angular_y = true
-	if limb == "lf" or limb == "rf":
-		physical_bone.axis_lock_angular_z = true
-		physical_bone.axis_lock_angular_x = true
-
-func _remove_limb_locks() -> void:
-	var limbs = ["lh", "rh", "lf", "rf"]
-	for limb in limbs:
-		release_limb(limb)
 
 # This function saves current joint angular spring stiffness and damping for all joints
 func save_joint_params() -> void:
@@ -226,6 +209,23 @@ func update_climbing(_delta: float) -> void:
 	try_reach_limbs(omega_IK)
 	try_reach_pose(omega_IK)
 	try_grab()
+	
+	'''
+	# Debugging for grabbing holds and computing contact force
+	if attachments["lh"] != null:
+		#print(attachments["lh"].compute_contact_force().length()/9.8)
+		DebugDraw3D.draw_arrow(attachments["lh"].hold_anchor, attachments["lh"].hold_anchor + attachments["lh"].compute_contact_force()/100, Color.RED, 0.01)
+	
+	var total: Vector3 = Vector3.ZERO
+	for attachment in attachments.values():
+		if attachment == null:
+			continue
+		total += attachment.compute_contact_force()
+	
+	var hip_pos = character.bone_sim.find_child("Physical Bone Hips").global_position
+	DebugDraw3D.draw_arrow(hip_pos, hip_pos - total/100, Color.RED, 0.01)
+	print(total.length()/9.8)
+	'''
 
 func try_reach_limbs(omega_IK: Dictionary) -> void:
 	for joint in character.joints.values():
@@ -249,25 +249,25 @@ func try_grab() -> void:
 	var threshold_distance = 0.03
 	
 	# LEFT HAND
-	if reaching_left_hand and not attached_holds["lh"]:
+	if reaching_left_hand and not attachments["lh"]:
 		var dist = get_bone_world_transform("LeftHand").origin.distance_to(left_hand_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("lh")
 
 	# RIGHT HAND
-	if reaching_right_hand and not attached_holds["rh"]:
+	if reaching_right_hand and not attachments["rh"]:
 		var dist = get_bone_world_transform("RightHand").origin.distance_to(right_hand_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("rh")
 
 	# LEFT FOOT
-	if reaching_left_foot and not attached_holds["lf"]:
+	if reaching_left_foot and not attachments["lf"]:
 		var dist = get_bone_world_transform("LeftFoot").origin.distance_to(left_foot_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("lf")
 
 	# RIGHT FOOT
-	if reaching_right_foot and not attached_holds["rf"]:
+	if reaching_right_foot and not attachments["rf"]:
 		var dist = get_bone_world_transform("RightFoot").origin.distance_to(right_foot_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("rf")
@@ -283,28 +283,28 @@ func get_omega_IK() -> Dictionary:
 	var end_effector_rot = Quaternion.IDENTITY
 	var target_rot = Quaternion.IDENTITY
 	
-	if reaching_left_hand and not attached_holds["lh"]:
+	if reaching_left_hand and not attachments["lh"]:
 		end_effector_pos = get_bone_world_transform("LeftHand").origin
 		target_pos = left_hand_target.global_position
 		
 		end_effector_rot = get_bone_world_transform("LeftHand").basis.get_rotation_quaternion()
 		target_rot = left_hand_target.global_basis.get_rotation_quaternion()
 	
-	if reaching_right_hand and not attached_holds["rh"]:
+	if reaching_right_hand and not attachments["rh"]:
 		end_effector_pos = get_bone_world_transform("RightHand").origin
 		target_pos = right_hand_target.global_position
 		
 		end_effector_rot = get_bone_world_transform("RightHand").basis.get_rotation_quaternion()
 		target_rot = right_hand_target.global_basis.get_rotation_quaternion()
 	
-	if reaching_left_foot and not attached_holds["lf"]:
+	if reaching_left_foot and not attachments["lf"]:
 		end_effector_pos = get_bone_world_transform("LeftFoot").origin
 		target_pos = left_foot_target.global_position
 		
 		end_effector_rot = get_bone_world_transform("LeftFoot").basis.get_rotation_quaternion()
 		target_rot = left_foot_target.global_basis.get_rotation_quaternion()
 	
-	if reaching_right_foot and not attached_holds["rf"]:
+	if reaching_right_foot and not attachments["rf"]:
 		end_effector_pos = get_bone_world_transform("RightFoot").origin
 		target_pos = right_foot_target.global_position
 		
@@ -331,13 +331,13 @@ func get_reaching_joints() -> Array[Generic6DOFJoint3D]:
 	var reaching_joint_names = []
 	var reaching_joints: Array[Generic6DOFJoint3D] = []
 	
-	if reaching_left_hand and not attached_holds["lh"]:
+	if reaching_left_hand and not attachments["lh"]:
 		reaching_joint_names.append_array(["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint"])
-	if reaching_right_hand and not attached_holds["rh"]:
+	if reaching_right_hand and not attachments["rh"]:
 		reaching_joint_names.append_array(["RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"])
-	if reaching_left_foot and not attached_holds["lf"]:
+	if reaching_left_foot and not attachments["lf"]:
 		reaching_joint_names.append_array(["LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"])
-	if reaching_right_foot and not attached_holds["rf"]:
+	if reaching_right_foot and not attachments["rf"]:
 		reaching_joint_names.append_array(["RightHip Joint", "RightKnee Joint", "RightAnkle Joint"])
 	
 	for joint in character.joints.values():
@@ -370,9 +370,8 @@ func grab_hold(code: String) -> void:
 			return
 	
 	var bone_name = skeleton.get_bone_name(bone_index)
-	var physical_bone_name: String = character.bone_names[bone_name]
 	
-	var physical_bone: PhysicalBone3D = character.bone_sim.find_child(physical_bone_name)
+	var physical_bone: PhysicalBone3D = limbs[code]
 	var offset_transform = character.bone_rotation_offsets[bone_name]
 	
 	var IK_bone_transform = IK_pose[bone_index]
@@ -382,27 +381,23 @@ func grab_hold(code: String) -> void:
 	
 	physical_bone.global_transform = physical_bone_global_transform
 	
-	_add_limb_lock(code)
-	attached_holds[code] = target_holds[code]
+	attach_limb(code)
 
-
-func release_limb(limb: String) -> void:
-	var bone_name: String
-	match limb:
-		"lh": bone_name = "Physical Bone LeftHand"
-		"rh": bone_name = "Physical Bone RightHand"
-		"lf": bone_name = "Physical Bone LeftFoot"
-		"rf": bone_name = "Physical Bone RightFoot"
-		_: return
-	var physical_bone: PhysicalBone3D = character.bone_sim.find_child(bone_name)
-	physical_bone.axis_lock_linear_x = false
-	physical_bone.axis_lock_linear_y = false
-	physical_bone.axis_lock_linear_z = false
-	physical_bone.axis_lock_angular_x = false
-	physical_bone.axis_lock_angular_y = false
-	physical_bone.axis_lock_angular_z = false
+func attach_limb(code: String) -> void:
+	var hold: Hold = target_holds[code]
+	var limb: PhysicalBone3D = limbs[code]
 	
-	attached_holds[limb] = null
+	var attachment := LimbAttachment.new(code, limb, hold)
+	attachments[code] = attachment
+
+func detach_limb(code: String) -> void:
+	var a: LimbAttachment = attachments[code]
+	if a == null:
+		return
+
+	a.joint.queue_free()
+	attachments[code] = null
+
 
 func copy_physical_to_skeleton():
 	for bone_name in character.bone_names:
@@ -828,19 +823,19 @@ func _on_right_leg_strength_changed(value: float) -> void:
 	right_foot_force = value
 
 func _on_release_left_hand() -> void:
-	release_limb("lh")
+	detach_limb("lh")
 	print("Release left hand pressed")
 
 func _on_release_right_hand() -> void:
-	release_limb("rh")
+	detach_limb("rh")
 	print("Release right hand pressed")
 
 func _on_release_left_foot() -> void:
-	release_limb("lf")
+	detach_limb("lf")
 	print("Release left foot pressed")
 
 func _on_release_right_foot() -> void:
-	release_limb("rf")
+	detach_limb("rf")
 	print("Release right foot pressed")
 
 func _on_reach_left_hand() -> void:

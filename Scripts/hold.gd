@@ -3,6 +3,9 @@ extends Node3D
 
 @export var hold_name: String
 
+# At the moment this is only used to form joints between limbs and holds. It might not be needed
+@onready var static_body: StaticBody3D = $CSGBakedMeshInstance3D/StaticBody3D
+
 @onready var hand_grab_point: Marker3D = $hand_grab_point
 @onready var foot_grab_point: Marker3D = $foot_grab_point
 @onready var grab_point: Marker3D = $grab_point
