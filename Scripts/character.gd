@@ -411,9 +411,11 @@ func populate_IK_modified_bone_transforms() -> void:
 		"LeftUpperLeg": 45,
 		"LeftLowerLeg": 46,
 		"LeftFoot": 47,
+		"LeftToes": 48,
 		"RightUpperLeg": 49,
 		"RightLowerLeg": 50,
-		"RightFoot": 51
+		"RightFoot": 51,
+		"RightToes": 52,
 	}
 	for bone_idx in IK_skeleton_bones.values():
 		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
@@ -473,7 +475,8 @@ func _on_right_foot_ik_modification_processed() -> void:
 	var bone_chain = {
 		"RightUpperLeg": 49,
 		"RightLowerLeg": 50,
-		"RightFoot": 51
+		"RightFoot": 51,
+		"RightToes": 52,
 	}
 	for bone_idx in bone_chain.values():
 		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
@@ -485,6 +488,7 @@ func _on_left_foot_ik_modification_processed() -> void:
 		"LeftUpperLeg": 45,
 		"LeftLowerLeg": 46,
 		"LeftFoot": 47,
+		"LeftToes": 48,
 	}
 	for bone_idx in bone_chain.values():
 		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)

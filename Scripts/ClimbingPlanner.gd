@@ -72,21 +72,24 @@ func plan_start_pose(target_holds: Dictionary) -> Dictionary:
 	character.right_foot_ik.active = true
 	character.left_foot_ik.active = true
 	
-	for i in 2:
-		await get_tree().process_frame
+	# Move start pos downward (first implementation for testing)
+	var last_good_transform = root_target_transform
+	var new_transform = root_target_transform
+	var errors := await compute_ik_errors(target_holds)
+	
+	# Instead of just moving down, we should use some heuristic to find a "good" position
+	while errors["total"] < 0.03:
+		last_good_transform = new_transform
+		new_transform = Transform3D(last_good_transform.basis, last_good_transform.origin - Vector3(0, 0.01, 0))
+		character.IK_character_node.global_transform = new_transform
+		errors = await compute_ik_errors(target_holds)
+		#print("Total IK error: %f" % errors["total"])
+	
+	character.IK_character_node.global_transform = last_good_transform
 	
 	var result := {}
 	result["bone_transforms"] = character.IK_modified_bone_transforms
-	result["global_transform"] = root_target_transform
-	
-	print("RESULT:")
-	print(result)
-	
-	#character.right_hand_ik.active = false
-	#character.left_hand_ik.active = false
-	#character.right_foot_ik.active = false
-	#character.left_foot_ik.active = false
-
+	result["global_transform"] = last_good_transform
 	
 	return result
 
@@ -341,3 +344,65 @@ func _compute_raw_up_direction(
 		return Vector3.UP
 
 	return up.normalized()
+
+
+func compute_ik_errors(target_holds: Dictionary) -> Dictionary:
+
+	var res := {}
+	var total := 0.0
+
+	for i in 2:
+		await get_tree().process_frame
+
+	var IK_pose = character.IK_modified_bone_transforms
+
+	for code in target_holds.keys():
+
+		var hold = target_holds[code]
+		var target_pos = hold.get_grab_transform().origin
+
+		var bone_idx: int = _get_limb_bone_index(code)
+
+		var end_effector_transform: Transform3D = IK_pose[bone_idx]
+		var end_effector_global = character.IK_skeleton.global_transform * end_effector_transform
+		
+		if code == "rh" or code == "lh":
+			end_effector_global = get_hand_palm_transform(bone_idx)
+		
+		var end_effector_pos = end_effector_global.origin
+		var error = end_effector_pos.distance_to(target_pos)
+		
+		res[code] = error
+		total += error
+	
+	res["total"] = total
+	return res
+
+func _get_limb_bone_index(code) -> int:
+	var bone_idx: int
+	match code:
+			"rh":
+				bone_idx = 29
+			"lh":
+				bone_idx = 10
+			"rf":
+				bone_idx = 52
+			"lf":
+				bone_idx = 48
+			_:
+				push_error("Invalid code in _get_limb_bone_index")
+	return bone_idx
+
+func get_hand_palm_transform(bone_idx: int) -> Transform3D:
+	var IK_pose = character.IK_modified_bone_transforms
+	var hand_transform: Transform3D = IK_pose[bone_idx]
+	
+	var wrist_pos = hand_transform.origin
+	var wrist_basis = hand_transform.basis
+	
+	# Expects y to be local up direction
+	var extension = wrist_basis.y * 0.12
+	
+	var end_effector_global = character.IK_skeleton.global_transform * Transform3D(hand_transform.basis, wrist_pos + extension)
+	
+	return end_effector_global
