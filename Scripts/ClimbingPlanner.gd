@@ -364,10 +364,12 @@ func compute_ik_errors(target_holds: Dictionary) -> Dictionary:
 		var bone_idx: int = _get_limb_bone_index(code)
 
 		var end_effector_transform: Transform3D = IK_pose[bone_idx]
-		var end_effector_global = character.IK_skeleton.global_transform * end_effector_transform
+		var end_effector_global: Transform3D
 		
 		if code == "rh" or code == "lh":
-			end_effector_global = get_hand_palm_transform(bone_idx)
+			end_effector_global = character.IK_skeleton.global_transform * get_hand_palm_transform(end_effector_transform)
+		else:
+			end_effector_global = character.IK_skeleton.global_transform * end_effector_transform
 		
 		var end_effector_pos = end_effector_global.origin
 		var error = end_effector_pos.distance_to(target_pos)
@@ -393,16 +395,13 @@ func _get_limb_bone_index(code) -> int:
 				push_error("Invalid code in _get_limb_bone_index")
 	return bone_idx
 
-func get_hand_palm_transform(bone_idx: int) -> Transform3D:
-	var IK_pose = character.IK_modified_bone_transforms
-	var hand_transform: Transform3D = IK_pose[bone_idx]
-	
+func get_hand_palm_transform(hand_transform: Transform3D) -> Transform3D:
 	var wrist_pos = hand_transform.origin
 	var wrist_basis = hand_transform.basis
 	
 	# Expects y to be local up direction
 	var extension = wrist_basis.y * 0.12
 	
-	var end_effector_global = character.IK_skeleton.global_transform * Transform3D(hand_transform.basis, wrist_pos + extension)
+	var end_effector_global = Transform3D(hand_transform.basis, wrist_pos + extension)
 	
 	return end_effector_global
