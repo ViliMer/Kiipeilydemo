@@ -443,10 +443,6 @@ func get_bone_world_transform(bone_name: String) -> Transform3D:
 	
 	return bone_world
 
-func compute_IK_character_physical_joint_angles() -> Dictionary:
-	planner.get_IK_skeleton_joint_angles()
-	return {}
-
 func get_joint_rot_quaternion(joint: Generic6DOFJoint3D) -> Quaternion:
 	var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
 	var node_b: PhysicalBone3D = joint.get_node_or_null(joint.node_b)
@@ -912,6 +908,17 @@ func _on_save_pose() -> void:
 	print(res)
 
 func _on_reach_pose() -> void:
+	
+	# Debugging prints
+	#var left_elbow_angle: Quaternion = saved_joint_angles["LeftElbow Joint"]
+	#var right_elbow_angle: Quaternion = saved_joint_angles["RightElbow Joint"]
+	#var left_wrist_q: Quaternion = saved_joint_angles["LeftWrist Joint"]
+	#var right_wrist_q: Quaternion = saved_joint_angles["RightWrist Joint"]
+	#print("Left elbow angle: " + str(rad_to_deg(left_elbow_angle.get_euler().y)))
+	#print("Right elbow angle: " + str(rad_to_deg(right_elbow_angle.get_euler().y)))
+	#print("Left wrist angle: " + str(rad_to_deg(left_wrist_q.get_euler().z)))
+	#print("Right wrist angle: " + str(rad_to_deg(right_wrist_q.get_euler().z)))
+	
 	if reach_pose:
 		print("Disabling motors")
 		reach_pose = false

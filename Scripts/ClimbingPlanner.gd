@@ -61,10 +61,9 @@ func plan_start_pose(target_holds: Dictionary) -> Dictionary:
 	
 	var hip_idx = 1
 	var hip_pose_skel = character.IK_skeleton.get_bone_global_pose(hip_idx)
-	var root_target_transform = hip_target_transform * hip_pose_skel.affine_inverse()
+	var initial_root_target_transform = hip_target_transform * hip_pose_skel.affine_inverse()
 	
-	character.IK_character_node.global_transform = root_target_transform
-	character.IK_character_node.visible = true
+	character.IK_character_node.visible = true # Maybe move this so that it happens after iterating root transform (?)
 	
 	# Next run IK to reach target holds with limbs:
 	character.right_hand_ik.active = true
@@ -72,28 +71,190 @@ func plan_start_pose(target_holds: Dictionary) -> Dictionary:
 	character.right_foot_ik.active = true
 	character.left_foot_ik.active = true
 	
-	# Move start pos downward (first implementation for testing)
-	var last_good_transform = root_target_transform
-	var new_transform = root_target_transform
-	var errors := await compute_ik_errors(target_holds)
+	var new_transform = await iterate_root_transform(initial_root_target_transform, target_holds)
 	
-	# Instead of just moving down, we should use some heuristic to find a "good" position
-	while errors["total"] < 0.03:
-		last_good_transform = new_transform
-		new_transform = Transform3D(last_good_transform.basis, last_good_transform.origin - Vector3(0, 0.01, 0))
-		character.IK_character_node.global_transform = new_transform
-		errors = await compute_ik_errors(target_holds)
-		#print("Total IK error: %f" % errors["total"])
+	character.IK_character_node.global_transform = new_transform
 	
-	character.IK_character_node.global_transform = last_good_transform
-	
-	var result := {}
-	result["bone_transforms"] = character.IK_modified_bone_transforms
-	result["global_transform"] = last_good_transform
+	var result: Dictionary = {
+		"bone_transforms": character.IK_modified_bone_transforms,
+		"global_transform": new_transform
+	}
 	
 	return result
 
-# Need to figure this out. Might need to use the physical bone <-> skeleton bone transformations. Also need to check out how the angles are computed in save_joint_angles
+
+# Maybe rotation should be decided another way, so we can only sample position. Only position sampling seems fast enough, rotation sampling takes significant time.
+func iterate_root_transform(initial_transform: Transform3D, target_holds: Dictionary) -> Transform3D:
+	var best_transform := initial_transform
+	var best_score: float = INF
+	
+	#var yaw_samples = [-90, -60, -30, 0, 30, 60, 90]
+	var yaw_samples = [0]
+	
+	#var pitch_samples = [-20, -10, 0, 10, 20]
+	var pitch_samples = [0]
+	
+	var max_radius := 0.3
+	var pos_samples := 100
+	
+	# Evaluate initial pos first
+	character.IK_character_node.global_transform = initial_transform
+	var errors := await compute_ik_errors(target_holds)
+	
+	if errors["total"] < 0.03:
+		best_score = 0.0
+		best_score += heuristic_hands_straight()
+		best_score += heuristic_hips_close_to_wall(initial_transform, target_holds)
+		best_score += heuristic_COM_supported_wall_plane(target_holds)
+	
+	for i in pos_samples:
+		
+		var offset := Vector3(
+			randf_range(-max_radius, max_radius),
+			randf_range(-max_radius, max_radius),
+			randf_range(-max_radius, max_radius)
+		)
+		
+		#if offset.length() > max_radius:
+		#	continue
+		
+		var pos := initial_transform.origin + offset
+		
+		for yaw in yaw_samples:
+			for pitch in pitch_samples:
+				
+				var basis := sample_oriented_basis(initial_transform.basis, yaw, pitch)
+				var candidate := Transform3D(basis, pos)
+				
+				character.IK_character_node.global_transform = candidate
+				
+				errors = await compute_ik_errors(target_holds)
+				if errors["total"] > 0.03:
+					continue
+				
+				var score: float = 0.0
+				score += heuristic_hands_straight()
+				score += heuristic_hips_close_to_wall(candidate, target_holds)
+				score += heuristic_COM_supported_wall_plane(target_holds)
+				
+				if score < best_score:
+					best_score = score
+					print(score)
+					best_transform = candidate
+	
+	return best_transform
+
+# Helper function to generate rotated hip/root basis based on yaw and pitch
+func sample_oriented_basis(base_basis: Basis, yaw_deg: float, pitch_deg: float) -> Basis:
+	var yaw = deg_to_rad(yaw_deg)
+	var pitch = deg_to_rad(pitch_deg)
+	
+	var yaw_rot = Basis(Vector3.UP, yaw)
+	var pitch_rot = Basis(Vector3.RIGHT, pitch)
+	
+	return base_basis * yaw_rot * pitch_rot
+
+func heuristic_hands_straight() -> float:
+	var res = 0.0
+	
+	var IK_joint_angles: Dictionary = get_IK_skeleton_joint_angles()
+	var left_elbow_q: Quaternion = IK_joint_angles["LeftElbow Joint"]
+	var right_elbow_q: Quaternion = IK_joint_angles["RightElbow Joint"]
+	var left_wrist_q: Quaternion = IK_joint_angles["LeftWrist Joint"]
+	var right_wrist_q: Quaternion = IK_joint_angles["RightWrist Joint"]
+	
+	var left_elbow_angle := left_elbow_q.get_euler().y # radians
+	var right_elbow_angle := right_elbow_q.get_euler().y # radians
+	var left_wrist_angle := left_wrist_q.get_euler().z # radians
+	var right_wrist_angle := right_wrist_q.get_euler().z # radians
+	
+	res -= abs(left_elbow_angle)
+	res -= abs(right_elbow_angle)
+	res -= abs(left_wrist_angle)
+	res -= abs(right_wrist_angle)
+	
+	return res
+
+func heuristic_hips_close_to_wall(current_root_transform: Transform3D, target_holds: Dictionary) -> float:
+	var hip_pos := current_root_transform.origin
+	
+	var wall_normal: Vector3 = -_compute_forward_from_wall(target_holds)
+	var wall_point: Vector3 = compute_hold_centroid(target_holds)
+	
+	var signed_distance_from_wall: float = wall_normal.dot(hip_pos - wall_point)
+
+	return signed_distance_from_wall
+
+func heuristic_COM_supported_wall_plane(target_holds: Dictionary) -> float:
+	var res := 0.0
+
+	# Build wall coordinate frame
+	var forward: Vector3 = _compute_forward_from_wall(target_holds)
+	var wall_normal: Vector3 = -forward
+	
+	var up: Vector3 = _compute_up_direction(target_holds, forward)
+	var right: Vector3 = up.cross(wall_normal).normalized()
+
+	#up = wall_normal.cross(right).normalized()
+
+	# Compute COM world position
+	var skel: Skeleton3D = character.IK_skeleton
+	
+	var hip_bone_idx := 1
+	var hip_pos_skel: Vector3 = skel.get_bone_global_pose(hip_bone_idx).origin
+	var hip_pos_world: Vector3 = skel.global_transform * hip_pos_skel
+	
+	var COM_world: Vector3 = hip_pos_world + character.COM_relative_to_hip_bone
+
+	# Collect support points
+	var support_points := []
+
+	for code in target_holds.keys():
+		var hold = target_holds[code]
+		support_points.append(hold.get_grab_transform().origin)
+
+	if support_points.size() < 2:
+		return res
+
+	# Project points to wall plane
+	var points2 := []
+
+	for p in support_points:
+		points2.append(Vector2(p.dot(right), p.dot(up)))
+
+	var COM2 := Vector2(COM_world.dot(right), COM_world.dot(up))
+
+	# Compute support polygon
+	var hull := Geometry2D.convex_hull(points2)
+
+	if hull.size() < 2:
+		return res
+
+	# Compute distance to polygon edges
+	var inside := Geometry2D.is_point_in_polygon(COM2, hull)
+
+	var min_dist := INF
+
+	for i in hull.size():
+		var a: Vector2 = hull[i]
+		var b: Vector2 = hull[(i + 1) % hull.size()]
+
+		var ab := b - a
+		var t: float = clamp((COM2 - a).dot(ab) / ab.length_squared(), 0.0, 1.0)
+		var closest := a + ab * t
+
+		var d := COM2.distance_to(closest)
+
+		min_dist = min(min_dist, d)
+
+	# Score
+	if inside:
+		res -= min_dist        # deeper inside = better
+	else:
+		res += min_dist * 2.0  # outside = bad
+
+	return res
+
 func get_IK_skeleton_joint_angles() -> Dictionary:
 	var result = {}
 	var skel: Skeleton3D = character.IK_skeleton
@@ -351,8 +512,8 @@ func compute_ik_errors(target_holds: Dictionary) -> Dictionary:
 	var res := {}
 	var total := 0.0
 
-	for i in 2:
-		await get_tree().process_frame
+	#for i in 2:
+	await get_tree().process_frame
 
 	var IK_pose = character.IK_modified_bone_transforms
 

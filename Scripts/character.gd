@@ -12,6 +12,9 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var g_dir = ProjectSettings.get_setting("physics/3d/default_gravity_vector").normalized()
 var gravity_vector = g_dir * gravity
 
+var mass := 0.0
+var COM_relative_to_hip_bone := Vector3.ZERO
+
 @onready var camera_controller: CameraController = $CameraController
 @onready var anim: AnimationPlayer = $"Imported Character/AnimationPlayer"
 
@@ -36,8 +39,6 @@ var gravity_vector = g_dir * gravity
 @onready var left_hand_target: Node3D = $"Left Hand Target"
 @onready var right_foot_target: Node3D = $"Right Foot Target"
 @onready var left_foot_target: Node3D = $"Left Foot Target"
-
-var pitch: float = 0.0
 
 var climbing: ClimbingController
 var can_climb: bool = false
@@ -115,18 +116,37 @@ func get_all_descendants(bone_name: String, children_map: Dictionary, descendant
 
 func compute_mass() -> float:
 	
-	var mass = 0.0
+	var climber_mass = 0.0
 	
 	var physical_bones = bone_sim.get_children()
 	for physical_bone in physical_bones:
 		if physical_bone is PhysicalBone3D:
-			mass += physical_bone.mass
+			climber_mass += physical_bone.mass
 	
-	return mass
+	return climber_mass
+
+func compute_COM_relative_to_hip_bone() -> Vector3:
+	var COM := Vector3.ZERO
+	var total_mass := 0.0
+	
+	var hip_idx: int = skeleton.find_bone("Hips")
+	var hip_pos_skel: Vector3 = skeleton.get_bone_global_pose(hip_idx).origin
+	var hip_pos_world: Vector3 = skeleton.global_transform * hip_pos_skel
+	
+	for physical_bone in bone_sim.get_children():
+		if physical_bone is PhysicalBone3D:
+			var bone_mass: float = physical_bone.mass
+			var bone_com: Vector3 = physical_bone.get_center_of_mass_world()
+			
+			COM += bone_com * bone_mass
+			total_mass += bone_mass
+	
+	COM /= total_mass
+	var hip_world := skeleton.global_transform * skeleton.get_bone_global_pose(hip_idx)
+	var COM_local := hip_world.affine_inverse() * COM
+	return COM_local
 
 func _ready() -> void:
-	print("Total climber mass: " + str(compute_mass()) + " kg")
-	
 	compute_offsets()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	mesh.visible = true
@@ -165,6 +185,11 @@ func _ready() -> void:
 	
 	get_joints()
 	populate_IK_modified_bone_transforms()
+	
+	mass = compute_mass()
+	COM_relative_to_hip_bone = compute_COM_relative_to_hip_bone()
+	print("Total climber mass: " + str(mass) + " kg")
+	print("Center of mass relative to hip bone: " + str(COM_relative_to_hip_bone))
 
 
 func _input(event: InputEvent) -> void:
