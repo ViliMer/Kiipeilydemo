@@ -21,7 +21,7 @@ func _init(limb_code: String, physical_limb: PhysicalBone3D, climbing_hold: Hold
 	limb = physical_limb
 	hold = climbing_hold
 	
-	hold_anchor = hold.get_grab_transform().origin
+	hold_anchor = hold.get_grab_point_transform().origin
 	
 	match code:
 		"lh": grab_point = limb.find_child("JugGrabPoint")
@@ -42,7 +42,7 @@ func _init(limb_code: String, physical_limb: PhysicalBone3D, climbing_hold: Hold
 
 func set_joint_default_params() -> void:
 	# Allow a bit of linear movement for force sensor
-	var limit: float = 0.00
+	var limit: float = 0.02
 	joint.set_param_x(Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, -limit)
 	joint.set_param_x(Generic6DOFJoint3D.PARAM_LINEAR_UPPER_LIMIT, limit)
 	joint.set_param_y(Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, -limit)

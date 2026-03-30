@@ -47,6 +47,12 @@ var limbs: Dictionary = {
 	"lf": null,
 	"rf": null
 }
+var up_stream_physical_bones: Dictionary = {
+	"lh": null,
+	"rh": null,
+	"lf": null,
+	"rf": null
+}
 
 var attachments: Dictionary = {
 	"lh": null,
@@ -73,6 +79,10 @@ func init(character_ref: CharacterBody3D) -> void:
 	limbs["rh"] = character.bone_sim.find_child("Physical Bone RightHand")
 	limbs["lf"] = character.bone_sim.find_child("Physical Bone LeftFoot")
 	limbs["rf"] = character.bone_sim.find_child("Physical Bone RightFoot")
+	up_stream_physical_bones["lh"] = character.bone_sim.find_child("Physical Bone LeftLowerArm")
+	up_stream_physical_bones["rh"] = character.bone_sim.find_child("Physical Bone RightLowerArm")
+	up_stream_physical_bones["lf"] = character.bone_sim.find_child("Physical Bone LeftLowerLeg")
+	up_stream_physical_bones["rf"] = character.bone_sim.find_child("Physical Bone RightLowerLeg")
 	
 	planner = ClimbingPlanner.new() # If there is some trouble later, I might need to add this as a child in the scene tree
 	add_child(planner)
@@ -89,13 +99,22 @@ func _input(_event: InputEvent) -> void:
 
 func enter_climb(new_route: Route):
 	route = new_route
-	target_holds = route.get_starting_holds().duplicate(true)
+	target_holds = route.get_starting_holds().duplicate(true) # SUS, why duplicate?
 	update_ik_targets(target_holds)
 	
 	var start_pose = await planner.plan_start_pose(target_holds)
 	
 	character.bone_sim.active = true
 	await reach_start_pose(start_pose)
+	
+	# Targets have been reached, clear target holds
+	target_holds = {
+		"lh": null,
+		"rh": null,
+		"lf": null,
+		"rf": null
+	}
+	
 	character.run_bone_sim(true)
 
 func reach_start_pose(start_pose: Dictionary) -> void:
@@ -169,13 +188,13 @@ func exit_climb():
 
 func update_ik_targets(holds: Dictionary) -> void:
 	if holds["lh"]:
-		left_hand_target.global_transform = holds["lh"].get_grab_transform()
+		left_hand_target.global_transform = holds["lh"].get_grab_point_transform()
 	if holds["rh"]:
-		right_hand_target.global_transform = holds["rh"].get_grab_transform()
+		right_hand_target.global_transform = holds["rh"].get_grab_point_transform()
 	if holds["lf"]:
-		left_foot_target.global_transform = holds["lf"].get_grab_transform()
+		left_foot_target.global_transform = holds["lf"].get_grab_point_transform()
 	if holds["rf"]:
-		right_foot_target.global_transform = holds["rf"].get_grab_transform()
+		right_foot_target.global_transform = holds["rf"].get_grab_point_transform()
 
 # This function saves current joint angular spring stiffness and damping for all joints
 func save_joint_params() -> void:
@@ -201,7 +220,6 @@ func apply_joint_params(joint_params: Dictionary) -> void:
 		joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING, damping.x)
 		joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING, damping.y)
 		joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_SPRING_DAMPING, damping.z)
-
 
 func update_climbing(_delta: float) -> void:
 	saved_joint_angles = planner.get_IK_skeleton_joint_angles()
@@ -246,69 +264,80 @@ func try_reach_pose(omega_IK: Dictionary) -> void:
 			DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
 
 func try_grab() -> void:
-	var threshold_distance = 0.03
+	var threshold_distance = 0.1
 	
 	# LEFT HAND
-	if reaching_left_hand and not attachments["lh"]:
-		var dist = get_bone_world_transform("LeftHand").origin.distance_to(left_hand_target.global_position)
+	if reaching_left_hand and not attachments["lh"] and target_holds["lh"]:
+		var dist = get_end_effector_global_transform("lh").origin.distance_to(left_hand_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("lh")
 
 	# RIGHT HAND
-	if reaching_right_hand and not attachments["rh"]:
-		var dist = get_bone_world_transform("RightHand").origin.distance_to(right_hand_target.global_position)
+	if reaching_right_hand and not attachments["rh"] and target_holds["rh"]:
+		var dist = get_end_effector_global_transform("rh").origin.distance_to(right_hand_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("rh")
 
 	# LEFT FOOT
-	if reaching_left_foot and not attachments["lf"]:
-		var dist = get_bone_world_transform("LeftFoot").origin.distance_to(left_foot_target.global_position)
+	if reaching_left_foot and not attachments["lf"] and target_holds["lf"]:
+		var dist = get_end_effector_global_transform("lf").origin.distance_to(left_foot_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("lf")
 
 	# RIGHT FOOT
-	if reaching_right_foot and not attachments["rf"]:
-		var dist = get_bone_world_transform("RightFoot").origin.distance_to(right_foot_target.global_position)
+	if reaching_right_foot and not attachments["rf"] and target_holds["rf"]:
+		var dist = get_end_effector_global_transform("rf").origin.distance_to(right_foot_target.global_position)
 		if dist <= threshold_distance:
 			grab_hold("rf")
+
 
 func get_omega_IK() -> Dictionary:
 	
 	var result = {}
 	
 	# This implementation assumes there is 0 or 1 reaching limbs, fix later
+	var end_effector_transform: Transform3D
+	
 	var end_effector_pos = Vector3.ZERO
 	var target_pos = Vector3.ZERO
 	
 	var end_effector_rot = Quaternion.IDENTITY
 	var target_rot = Quaternion.IDENTITY
 	
-	if reaching_left_hand and not attachments["lh"]:
-		end_effector_pos = get_bone_world_transform("LeftHand").origin
+	if reaching_left_hand and not attachments["lh"] and target_holds["lh"]:
+		end_effector_transform = get_end_effector_global_transform("lh")
+		
+		end_effector_pos = end_effector_transform.origin
 		target_pos = left_hand_target.global_position
 		
-		end_effector_rot = get_bone_world_transform("LeftHand").basis.get_rotation_quaternion()
+		end_effector_rot = end_effector_transform.basis.get_rotation_quaternion()
 		target_rot = left_hand_target.global_basis.get_rotation_quaternion()
 	
-	if reaching_right_hand and not attachments["rh"]:
-		end_effector_pos = get_bone_world_transform("RightHand").origin
+	if reaching_right_hand and not attachments["rh"] and target_holds["rh"]:
+		end_effector_transform = get_end_effector_global_transform("rh")
+		
+		end_effector_pos = end_effector_transform.origin
 		target_pos = right_hand_target.global_position
 		
-		end_effector_rot = get_bone_world_transform("RightHand").basis.get_rotation_quaternion()
+		end_effector_rot = end_effector_transform.basis.get_rotation_quaternion()
 		target_rot = right_hand_target.global_basis.get_rotation_quaternion()
 	
-	if reaching_left_foot and not attachments["lf"]:
-		end_effector_pos = get_bone_world_transform("LeftFoot").origin
+	if reaching_left_foot and not attachments["lf"] and target_holds["lf"]:
+		end_effector_transform = get_end_effector_global_transform("lf")
+		
+		end_effector_pos = end_effector_transform.origin
 		target_pos = left_foot_target.global_position
 		
-		end_effector_rot = get_bone_world_transform("LeftFoot").basis.get_rotation_quaternion()
+		end_effector_rot = end_effector_transform.basis.get_rotation_quaternion()
 		target_rot = left_foot_target.global_basis.get_rotation_quaternion()
 	
-	if reaching_right_foot and not attachments["rf"]:
-		end_effector_pos = get_bone_world_transform("RightFoot").origin
+	if reaching_right_foot and not attachments["rf"] and target_holds["rf"]:
+		end_effector_transform = get_end_effector_global_transform("rf")
+		
+		end_effector_pos = end_effector_transform.origin
 		target_pos = right_foot_target.global_position
 		
-		end_effector_rot = get_bone_world_transform("RightFoot").basis.get_rotation_quaternion()
+		end_effector_rot = end_effector_transform.basis.get_rotation_quaternion()
 		target_rot = right_foot_target.global_basis.get_rotation_quaternion()
 	
 	var reaching_joints = get_reaching_joints()
@@ -327,18 +356,41 @@ func get_omega_IK() -> Dictionary:
 	
 	return result
 
+
+var joint_names_by_code = {
+	"lh": ["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint"],
+	"rh": ["RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"],
+	"lf": ["LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"],
+	"rf": ["RightHip Joint", "RightKnee Joint", "RightAnkle Joint"]
+}
+
+# Helper to get disabled joints, not used at the moment
+func get_disabled_joins() -> Array:
+	var disabled_joint_names = []
+	var disabled_joints: Array[Generic6DOFJoint3D] = []
+	for code in attachments.keys():
+		var attachment = attachments[code]
+		if attachment == null and target_holds[code] == null:
+			disabled_joint_names.append_array(joint_names_by_code[code])
+	
+	for joint in character.joints.values():
+		if joint.name in disabled_joint_names:
+			disabled_joints.append(joint)
+	
+	return disabled_joints
+
 func get_reaching_joints() -> Array[Generic6DOFJoint3D]:
 	var reaching_joint_names = []
 	var reaching_joints: Array[Generic6DOFJoint3D] = []
 	
 	if reaching_left_hand and not attachments["lh"]:
-		reaching_joint_names.append_array(["LeftUpperChest Joint", "LeftShoulder Joint", "LeftElbow Joint", "LeftWrist Joint"])
+		reaching_joint_names.append_array(joint_names_by_code["lh"])
 	if reaching_right_hand and not attachments["rh"]:
-		reaching_joint_names.append_array(["RightUpperChest Joint", "RightShoulder Joint", "RightElbow Joint", "RightWrist Joint"])
+		reaching_joint_names.append_array(joint_names_by_code["rh"])
 	if reaching_left_foot and not attachments["lf"]:
-		reaching_joint_names.append_array(["LeftHip Joint", "LeftKnee Joint", "LeftAnkle Joint"])
+		reaching_joint_names.append_array(joint_names_by_code["lf"])
 	if reaching_right_foot and not attachments["rf"]:
-		reaching_joint_names.append_array(["RightHip Joint", "RightKnee Joint", "RightAnkle Joint"])
+		reaching_joint_names.append_array(joint_names_by_code["rf"])
 	
 	for joint in character.joints.values():
 		if joint.name in reaching_joint_names:
@@ -352,7 +404,6 @@ func set_joint_velocity(joint: Generic6DOFJoint3D, omega: Vector3):
 	joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_MOTOR_TARGET_VELOCITY, omega.z)
 
 func grab_hold(code: String) -> void:
-	print("Grab (new)")
 	var IK_pose = character.IK_modified_bone_transforms
 	var bone_index: int
 	
@@ -379,7 +430,11 @@ func grab_hold(code: String) -> void:
 	
 	var physical_bone_global_transform = IK_bone_global * offset_transform
 	
-	physical_bone.global_transform = physical_bone_global_transform
+	
+	# NEXT: figure out a way to get a good transformation for the bone based on the hold, not IK
+	#physical_bone.global_transform = physical_bone_global_transform
+	var upstream_bone_transform: Transform3D = up_stream_physical_bones[code].global_transform
+	physical_bone.global_transform = target_holds[code].get_limb_grab_transform(code, physical_bone, upstream_bone_transform)
 	
 	attach_limb(code)
 
@@ -389,6 +444,18 @@ func attach_limb(code: String) -> void:
 	
 	var attachment := LimbAttachment.new(code, limb, hold)
 	attachments[code] = attachment
+	target_holds[code] = null
+	
+	# Update UI to display no target, as target has been reached
+	match code:
+		"lh":
+			SignalBus.left_hand_target_reached.emit()
+		"rh":
+			SignalBus.right_hand_target_reached.emit()
+		"lf":
+			SignalBus.left_foot_target_reached.emit()
+		"rf":
+			SignalBus.right_foot_target_reached.emit()
 
 func detach_limb(code: String) -> void:
 	var a: LimbAttachment = attachments[code]
@@ -396,6 +463,7 @@ func detach_limb(code: String) -> void:
 		return
 
 	a.joint.queue_free()
+	# Should probably clear a from memory as well
 	attachments[code] = null
 
 
@@ -425,6 +493,7 @@ func copy_physical_to_skeleton():
 			var local_pose: Transform3D = parent_pose.affine_inverse() * phys_in_skeleton_space * offset_inverse
 			skeleton.set_bone_pose(bone_idx, local_pose)
 
+# This should not be used at least for now
 func get_bone_world_transform(bone_name: String) -> Transform3D:
 	var physical_bone_name = character.bone_names[bone_name]
 	var phys_bone: PhysicalBone3D = character.bone_sim.find_child(physical_bone_name)
@@ -442,6 +511,20 @@ func get_bone_world_transform(bone_name: String) -> Transform3D:
 	var bone_world: Transform3D = phys_world * offset_inv
 	
 	return bone_world
+
+# Use this instead:
+# Note: This uses functions from planner, which is a bit spaghettyish
+func get_end_effector_global_transform(code: String) -> Transform3D:
+	var bone_idx: int = planner.get_limb_bone_index(code)
+	var end_effector_transform: Transform3D = character.bone_sim_modified_bone_transforms[bone_idx]
+	var end_effector_global: Transform3D
+		
+	if code == "rh" or code == "lh":
+		end_effector_global = character.skeleton.global_transform * planner.get_hand_palm_transform(end_effector_transform)
+	else:
+		end_effector_global = character.skeleton.global_transform * end_effector_transform
+	
+	return end_effector_global
 
 func get_joint_rot_quaternion(joint: Generic6DOFJoint3D) -> Quaternion:
 	var node_a: PhysicalBone3D = joint.get_node_or_null(joint.node_a)
@@ -749,9 +832,7 @@ func compute_rotation_joint_velocities(J: Dictionary, w_desired: Vector3, gain :
 	return velocities
 
 func enable_velocity_motors(joints_to_enable: Array) -> void:
-	print("Enabling:")
 	for joint in joints_to_enable:
-		print(joint.name)
 		var max_torque = JOINT_CONSTANTS[joint.name].max_torque * 5
 		
 		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
@@ -883,25 +964,45 @@ func _on_reach_right_foot() -> void:
 		enable_velocity_motors(reaching_joints)
 
 func _on_left_hand_target_changed(value: int) -> void:
-	# To be specific, value is the index of the selected item in the dropdown menu. Should be the same as the index of the hold in route.get_holds()
-	var hold = route.get_holds()[value]
-	target_holds["lh"] = hold
-	left_hand_target.global_transform = hold.get_grab_transform()
+	if value == -1: # No target selected
+		target_holds["lh"] = null
+	else:
+		# To be specific, value is the index of the selected item in the dropdown menu. Should be the same as the index of the hold in route.get_holds()
+		var hold = route.get_holds()[value]
+		target_holds["lh"] = hold
+		left_hand_target.global_transform = hold.get_grab_point_transform()
+	
+	await planner.plan_next_pose(attachments, target_holds)
 
 func _on_right_hand_target_changed(value: int) -> void:
-	var hold = route.get_holds()[value]
-	target_holds["rh"] = hold
-	right_hand_target.global_transform = hold.get_grab_transform()
+	if value == -1: # No target selected
+		target_holds["rh"] = null
+	else:
+		var hold = route.get_holds()[value]
+		target_holds["rh"] = hold
+		right_hand_target.global_transform = hold.get_grab_point_transform()
+		
+	await planner.plan_next_pose(attachments, target_holds)
 
 func _on_left_foot_target_changed(value: int) -> void:
-	var hold = route.get_holds()[value]
-	target_holds["lf"] = hold
-	left_foot_target.global_transform = hold.get_grab_transform()
+	if value == -1: # No target selected
+		target_holds["lf"] = null
+	else:
+		var hold = route.get_holds()[value]
+		target_holds["lf"] = hold
+		left_foot_target.global_transform = hold.get_grab_point_transform()
+	
+	await planner.plan_next_pose(attachments, target_holds)
 
 func _on_right_foot_target_changed(value: int) -> void:
-	var hold = route.get_holds()[value]
-	target_holds["rf"] = hold
-	right_foot_target.global_transform = hold.get_grab_transform()
+	if value == -1: # No target selected
+		target_holds["rf"] = null
+	else:
+		var hold = route.get_holds()[value]
+		target_holds["rf"] = hold
+		right_foot_target.global_transform = hold.get_grab_point_transform()
+	
+	await planner.plan_next_pose(attachments, target_holds)
 
 func _on_save_pose() -> void:
 	var res = save_joint_angles()

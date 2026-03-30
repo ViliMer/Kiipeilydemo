@@ -60,7 +60,11 @@ func _connect_ui() -> void:
 	)
 
 	left_hand_options.item_selected.connect(func(value: int):
-		SignalBus.left_hand_target_changed.emit(value)
+		SignalBus.left_hand_target_changed.emit(value - 1) # -1 because of the "No target" option
+	)
+	
+	SignalBus.left_hand_target_reached.connect(func():
+		left_hand_options.select(0)
 	)
 
 	# RIGHT HAND
@@ -76,7 +80,11 @@ func _connect_ui() -> void:
 	)
 
 	right_hand_options.item_selected.connect(func(value: int):
-		SignalBus.right_hand_target_changed.emit(value)
+		SignalBus.right_hand_target_changed.emit(value - 1) # -1 because of the "No target" option
+	)
+	
+	SignalBus.right_hand_target_reached.connect(func():
+		right_hand_options.select(0)
 	)
 
 	# LEFT LEG
@@ -92,7 +100,11 @@ func _connect_ui() -> void:
 	)
 
 	left_leg_options.item_selected.connect(func(value: int):
-		SignalBus.left_foot_target_changed.emit(value)
+		SignalBus.left_foot_target_changed.emit(value - 1) # -1 because of the "No target" option
+	)
+	
+	SignalBus.left_foot_target_reached.connect(func():
+		left_leg_options.select(0)
 	)
 
 	# RIGHT LEG
@@ -107,7 +119,11 @@ func _connect_ui() -> void:
 		SignalBus.reach_right_foot.emit())
 	
 	right_leg_options.item_selected.connect(func(value: int):
-		SignalBus.right_foot_target_changed.emit(value)
+		SignalBus.right_foot_target_changed.emit(value - 1) # -1 because of the "No target" option
+	)
+	
+	SignalBus.right_foot_target_reached.connect(func():
+		right_leg_options.select(0)
 	)
 	
 	# OTHER
@@ -127,6 +143,8 @@ func _on_left_hand_edit_submitted(text: String) -> void:
 	var v := float(text)
 	left_hand_strength_slider.value = v
 	SignalBus.left_hand_strength_changed.emit(v)
+
+
 
 func _on_right_hand_slider_changed(value: float) -> void:
 	right_hand_strength_edit.text = str(value)
@@ -156,6 +174,12 @@ func _on_right_leg_edit_submitted(text: String) -> void:
 	SignalBus.right_leg_strength_changed.emit(v)
 
 func _on_start_route(route: Route) -> void:
+	
+	left_hand_options.add_item("No target")
+	right_hand_options.add_item("No target")
+	left_leg_options.add_item("No target")
+	right_leg_options.add_item("No target")
+	
 	var holds = route.get_holds()
 	for hold in holds:
 		left_hand_options.add_item(hold.hold_name)
@@ -165,10 +189,11 @@ func _on_start_route(route: Route) -> void:
 	
 	var start = route.get_starting_holds()
 	
-	left_hand_options.select(find_item_index_by_text(left_hand_options, start["lh"].hold_name))
-	right_hand_options.select(find_item_index_by_text(right_hand_options, start["rh"].hold_name))
-	left_leg_options.select(find_item_index_by_text(left_leg_options, start["lf"].hold_name))
-	right_leg_options.select(find_item_index_by_text(right_leg_options, start["rf"].hold_name))
+	#left_hand_options.select(find_item_index_by_text(left_hand_options, start["lh"].hold_name))
+	left_hand_options.select(0)
+	right_hand_options.select(0)
+	left_leg_options.select(0)
+	right_leg_options.select(0)
 
 func find_item_index_by_text(option_button: OptionButton, text: String) -> int:
 	for i in range(option_button.item_count):

@@ -37,7 +37,7 @@ shape = SubResource("ConcavePolygonShape3D_3bnm2")
 transform = Transform3D(-1, 8.742278e-08, 4.371139e-08, -4.371139e-08, 1.9106855e-15, -1, -8.742278e-08, -1, 1.9106855e-15, 0, 0.19468208, 0.19343524)
 
 [node name="grab_point" type="Marker3D" parent="." unique_id=1954691699]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0.15531997, 0.071238086)
+transform = Transform3D(-1, 0, -1.509958e-07, 0, 1, 0, 1.509958e-07, 0, -1, 0, 0.15531997, 0.071238086)
 
 [node name="foot_grab_point" type="Marker3D" parent="." unique_id=1665206192]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0.17196126, 0.2462139)

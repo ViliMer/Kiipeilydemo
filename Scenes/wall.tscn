@@ -63,16 +63,32 @@ transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, 
 hold_name = "Hold 5"
 
 [node name="Hold 6" parent="Holds" unique_id=1433559602 instance=ExtResource("1_d155t")]
-transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.6615006, 3.6727145, -1.1711959)
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.1399851, 2.7694232, -0.6417543)
 hold_name = "Hold 6"
 
 [node name="Hold 7" parent="Holds" unique_id=1556008453 instance=ExtResource("1_d155t")]
-transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -2.1324801, 4.488475, -0.33655775)
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.5075084, 3.405992, 0.27401677)
 hold_name = "Hold 7"
 
 [node name="Hold 8" parent="Holds" unique_id=1442609303 instance=ExtResource("1_d155t")]
-transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -2.2912223, 4.7634244, -1.1665728)
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.84272, 3.9865956, 0.127262)
 hold_name = "Hold 8"
+
+[node name="Hold 9" parent="Holds" unique_id=606083909 instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.84272, 3.9865956, 1.3396248)
+hold_name = "Hold 9"
+
+[node name="Hold 10" parent="Holds" unique_id=2099045956 instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.8814847, 4.0537386, 1.7261673)
+hold_name = "Hold 10"
+
+[node name="Hold 11" parent="Holds" unique_id=601260216 instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -1.8814847, 4.0537386, 2.5722537)
+hold_name = "Hold 11"
+
+[node name="Hold 12" parent="Holds" unique_id=171285035 instance=ExtResource("1_d155t")]
+transform = Transform3D(-4.371139e-08, -0.5, -0.8660254, 0, 0.8660254, -0.5, 1, -2.1855694e-08, -3.7855173e-08, -2.4403977, 5.0218043, 1.8888485)
+hold_name = "Hold 12"
 
 [connection signal="body_entered" from="Detect climber area" to="." method="_on_detect_climber_area_body_entered"]
 [connection signal="body_exited" from="Detect climber area" to="." method="_on_detect_climber_area_body_exited"]

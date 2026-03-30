@@ -67,9 +67,11 @@ var bone_names = {
 	"LeftUpperLeg":		"Physical Bone LeftUpperLeg",
 	"LeftLowerLeg":		"Physical Bone LeftLowerLeg",
 	"LeftFoot":			"Physical Bone LeftFoot",
+	"LeftToes":			null,
 	"RightUpperLeg":	"Physical Bone RightUpperLeg",
 	"RightLowerLeg":	"Physical Bone RightLowerLeg",
 	"RightFoot":		"Physical Bone RightFoot",
+	"RightToes":		null,
 }
 
 # PhysicalBone parent -> child relationships
@@ -101,6 +103,7 @@ var bone_rotation_offsets = {} #Store offsets that allow transformation between 
 
 var joints = {}
 
+var bone_sim_modified_bone_transforms: Dictionary = {}
 var IK_modified_bone_transforms: Dictionary = {}
 
 func get_all_descendants(bone_name: String, children_map: Dictionary, descendants := []) -> Array:
@@ -331,6 +334,9 @@ func compute_offsets():
 			continue
 		
 		var physical_bone_name = bone_names[bone_name]
+		if not physical_bone_name:
+			continue
+		
 		var phys_bone: PhysicalBone3D = bone_sim.find_child(physical_bone_name)
 		if phys_bone == null:
 			continue
@@ -407,10 +413,10 @@ func compute_gravity_torque_for_joint(joint_name: String, downstream_bones: Arra
 	# Compensation = negative of gravity torque
 	return -total_torque
 
-func compute_gravity_compensation_for_joints(joints: Array) -> Dictionary:
+func compute_gravity_compensation_for_joints(joint_names: Array) -> Dictionary:
 	var result := {}
 
-	for joint_name in joints:
+	for joint_name in joint_names:
 		var bone = get_physical_bone_from_joint(joint_name)
 		var downstream = cached_descendant_bones[bone.name]
 		var torque := compute_gravity_torque_for_joint(joint_name, downstream)
@@ -518,3 +524,11 @@ func _on_left_foot_ik_modification_processed() -> void:
 	for bone_idx in bone_chain.values():
 		var t: Transform3D = IK_skeleton.get_bone_global_pose(bone_idx)
 		IK_modified_bone_transforms[bone_idx] = t
+
+
+# WIP: These can be used instead of get_bone_world_transform(). Might also be possible to use this instead of bone_rotation_offsets in some other places
+func _on_physical_bone_simulator_3d_modification_processed() -> void:
+	for bone_name in bone_names.keys():
+		var bone_idx: int = skeleton.find_bone(bone_name)
+		var t: Transform3D = skeleton.get_bone_global_pose(bone_idx)
+		bone_sim_modified_bone_transforms[bone_idx] = t

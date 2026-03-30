@@ -49,6 +49,125 @@ func plan_climb(holds: Array[Hold], attached_holds: Dictionary, character_reache
 func generate_target_pose(target_holds: Dictionary) -> void:
 	pass
 
+func plan_next_pose(attachments: Dictionary, target_holds: Dictionary) -> Dictionary:
+	
+	var current_holds: Dictionary = {}
+	var holds_to_consider: Dictionary = {}
+	var free_limbs: Array[String] = []
+	
+	for code in attachments.keys():
+		var attachment = attachments[code]
+		
+		if attachment:
+			current_holds[code] = attachment.hold
+			holds_to_consider[code] = attachment.hold
+		elif target_holds[code]:
+			holds_to_consider[code] = target_holds[code]
+		else:
+			free_limbs.append(code)
+	
+	var target_pos = compute_hold_centroid(holds_to_consider)
+	
+	var hip_target_transform = compute_hip_transform(holds_to_consider, target_pos)
+	
+	var hip_idx = 1
+	var hip_pose_skel = character.IK_skeleton.get_bone_global_pose(hip_idx)
+	var initial_root_target_transform = hip_target_transform * hip_pose_skel.affine_inverse()
+	
+	var new_transform = await iterate_target_pose(initial_root_target_transform, current_holds, target_holds, holds_to_consider, free_limbs)
+	
+	character.IK_character_node.global_transform = new_transform
+	
+	var result = {
+		"bone_transforms": character.IK_modified_bone_transforms,
+		"global_transform": new_transform
+	}
+	
+	return result
+
+func iterate_target_pose(initial_transform: Transform3D, current_holds: Dictionary, target_holds: Dictionary, holds_to_consider: Dictionary, free_limbs: Array[String]) -> Transform3D:
+	var best_transform := initial_transform
+	var best_score: float = INF
+	
+	#var yaw_samples = [-90, -60, -30, 0, 30, 60, 90]
+	var yaw_samples = [0]
+	
+	#var pitch_samples = [-20, -10, 0, 10, 20]
+	var pitch_samples = [0]
+	
+	var max_radius := 0.3
+	var pos_samples := 100
+	
+	# Evaluate initial pos first
+	character.IK_character_node.global_transform = initial_transform
+	
+	for limb_code in free_limbs:
+		balance_with_free_limb(limb_code)
+	
+	var errors := await compute_ik_errors(holds_to_consider)
+	
+	var cur_holds_error = 0.0
+	var number_of_current_holds = current_holds.size()
+	for code in current_holds.keys():
+		cur_holds_error += errors[code]
+	
+	var reaching_limbs_error: float = errors["total"] - cur_holds_error
+	
+	print("Number of current holds: " + str(number_of_current_holds))
+	print("Total error: " + str(errors["total"]))
+	print("Current holds error:" + str(cur_holds_error))
+	print("Reaching error: " + str(reaching_limbs_error))
+	
+	if errors["total"] < 0.0125 * number_of_current_holds:
+		best_score = 0.0
+		best_score += reaching_limbs_error
+		best_score += heuristic_hips_close_to_wall(initial_transform, holds_to_consider)
+		best_score += heuristic_COM_supported_wall_plane(current_holds)
+	
+	for i in pos_samples:
+		
+		var offset := Vector3(
+			randf_range(-max_radius, max_radius),
+			randf_range(-max_radius, max_radius),
+			randf_range(-max_radius, max_radius)
+		)
+		
+		var pos := initial_transform.origin + offset
+		
+		for yaw in yaw_samples:
+			for pitch in pitch_samples:
+				
+				var basis := sample_oriented_basis(initial_transform.basis, yaw, pitch)
+				var candidate := Transform3D(basis, pos)
+				
+				character.IK_character_node.global_transform = candidate
+				
+				for limb_code in free_limbs:
+					balance_with_free_limb(limb_code)
+				
+				errors = await compute_ik_errors(holds_to_consider)
+				
+				cur_holds_error = 0.0
+				for code in current_holds.keys():
+					cur_holds_error += errors[code]
+				
+				reaching_limbs_error = errors["total"] - cur_holds_error
+				
+				if errors["total"] > 0.0125 * number_of_current_holds:
+					continue
+				
+				var score: float = 0.0
+				score += reaching_limbs_error
+				score += heuristic_hips_close_to_wall(candidate, holds_to_consider)
+				score += heuristic_COM_supported_wall_plane(current_holds)
+				
+				if score < best_score:
+					best_score = score
+					print(score)
+					best_transform = candidate
+	
+	return best_transform
+
 func plan_start_pose(target_holds: Dictionary) -> Dictionary:
 	
 	# Initial guess for the hip starting position:
@@ -71,7 +190,7 @@ func plan_start_pose(target_holds: Dictionary) -> Dictionary:
 	character.right_foot_ik.active = true
 	character.left_foot_ik.active = true
 	
-	var new_transform = await iterate_root_transform(initial_root_target_transform, target_holds)
+	var new_transform = await iterate_start_pose(initial_root_target_transform, target_holds)
 	
 	character.IK_character_node.global_transform = new_transform
 	
@@ -84,7 +203,7 @@ func plan_start_pose(target_holds: Dictionary) -> Dictionary:
 
 
 # Maybe rotation should be decided another way, so we can only sample position. Only position sampling seems fast enough, rotation sampling takes significant time.
-func iterate_root_transform(initial_transform: Transform3D, target_holds: Dictionary) -> Transform3D:
+func iterate_start_pose(initial_transform: Transform3D, holds: Dictionary) -> Transform3D:
 	var best_transform := initial_transform
 	var best_score: float = INF
 	
@@ -99,13 +218,14 @@ func iterate_root_transform(initial_transform: Transform3D, target_holds: Dictio
 	
 	# Evaluate initial pos first
 	character.IK_character_node.global_transform = initial_transform
-	var errors := await compute_ik_errors(target_holds)
 	
-	if errors["total"] < 0.03:
+	var errors := await compute_ik_errors(holds)
+	
+	if errors["total"] < 0.05:
 		best_score = 0.0
 		best_score += heuristic_hands_straight()
-		best_score += heuristic_hips_close_to_wall(initial_transform, target_holds)
-		best_score += heuristic_COM_supported_wall_plane(target_holds)
+		best_score += heuristic_hips_close_to_wall(initial_transform, holds)
+		best_score += heuristic_COM_supported_wall_plane(holds)
 	
 	for i in pos_samples:
 		
@@ -128,14 +248,14 @@ func iterate_root_transform(initial_transform: Transform3D, target_holds: Dictio
 				
 				character.IK_character_node.global_transform = candidate
 				
-				errors = await compute_ik_errors(target_holds)
+				errors = await compute_ik_errors(holds)
 				if errors["total"] > 0.03:
 					continue
 				
 				var score: float = 0.0
 				score += heuristic_hands_straight()
-				score += heuristic_hips_close_to_wall(candidate, target_holds)
-				score += heuristic_COM_supported_wall_plane(target_holds)
+				score += heuristic_hips_close_to_wall(candidate, holds)
+				score += heuristic_COM_supported_wall_plane(holds)
 				
 				if score < best_score:
 					best_score = score
@@ -175,24 +295,24 @@ func heuristic_hands_straight() -> float:
 	
 	return res
 
-func heuristic_hips_close_to_wall(current_root_transform: Transform3D, target_holds: Dictionary) -> float:
+func heuristic_hips_close_to_wall(current_root_transform: Transform3D, holds: Dictionary) -> float:
 	var hip_pos := current_root_transform.origin
 	
-	var wall_normal: Vector3 = -_compute_forward_from_wall(target_holds)
-	var wall_point: Vector3 = compute_hold_centroid(target_holds)
+	var wall_normal: Vector3 = -_compute_forward_from_wall(holds)
+	var wall_point: Vector3 = compute_hold_centroid(holds)
 	
 	var signed_distance_from_wall: float = wall_normal.dot(hip_pos - wall_point)
 
 	return signed_distance_from_wall
 
-func heuristic_COM_supported_wall_plane(target_holds: Dictionary) -> float:
+func heuristic_COM_supported_wall_plane(holds: Dictionary) -> float:
 	var res := 0.0
 
 	# Build wall coordinate frame
-	var forward: Vector3 = _compute_forward_from_wall(target_holds)
+	var forward: Vector3 = _compute_forward_from_wall(holds)
 	var wall_normal: Vector3 = -forward
 	
-	var up: Vector3 = _compute_up_direction(target_holds, forward)
+	var up: Vector3 = _compute_up_direction(holds, forward)
 	var right: Vector3 = up.cross(wall_normal).normalized()
 
 	#up = wall_normal.cross(right).normalized()
@@ -209,9 +329,9 @@ func heuristic_COM_supported_wall_plane(target_holds: Dictionary) -> float:
 	# Collect support points
 	var support_points := []
 
-	for code in target_holds.keys():
-		var hold = target_holds[code]
-		support_points.append(hold.get_grab_transform().origin)
+	for code in holds.keys():
+		var hold = holds[code]
+		support_points.append(hold.get_grab_point_transform().origin)
 
 	if support_points.size() < 2:
 		return res
@@ -254,6 +374,11 @@ func heuristic_COM_supported_wall_plane(target_holds: Dictionary) -> float:
 		res += min_dist * 2.0  # outside = bad
 
 	return res
+
+
+# WIP: This function should move IK target node corresponding to limb code, so that the limb helps with balance. It should e.g. do flagging or move COM
+func balance_with_free_limb(limb_code: String) -> void:
+	pass
 
 func get_IK_skeleton_joint_angles() -> Dictionary:
 	var result = {}
@@ -299,19 +424,19 @@ func get_IK_skeleton_joint_angles() -> Dictionary:
 		
 	return result
 
-func _collect_active_shapes(attached_holds: Dictionary) -> Array[Node3D]:
+func _collect_active_shapes(holds: Dictionary) -> Array[Node3D]:
 	var shapes: Array[Node3D] = []
 
-	if attached_holds.lh != null:
+	if holds.has("lh"):
 		shapes.append(character.left_hand_target.get_node("ValidHipPosShape"))
 
-	if attached_holds.rh != null:
+	if holds.has("rh"):
 		shapes.append(character.right_hand_target.get_node("ValidHipPosShape"))
 
-	if attached_holds.lf != null:
+	if holds.has("lf"):
 		shapes.append(character.left_foot_target.get_node("ValidHipPosShape"))
 
-	if attached_holds.rf != null:
+	if holds.has("rf"):
 		shapes.append(character.right_foot_target.get_node("ValidHipPosShape"))
 
 	return shapes
@@ -382,16 +507,16 @@ func _find_closest_inside(
 
 
 func compute_hip_position(
-	attached_holds: Dictionary,
+	holds: Dictionary,
 	target_pos: Vector3
 ) -> Variant:
-	var shapes := _collect_active_shapes(attached_holds)
+	var shapes := _collect_active_shapes(holds)
 	if shapes.is_empty():
 		return target_pos
 	
 	var hip_pos = _find_closest_inside(target_pos, shapes)
 	if hip_pos == null:
-		return null
+		return target_pos
 
 	return hip_pos
 
@@ -399,7 +524,7 @@ func compute_hold_centroid(holds: Dictionary) -> Vector3:
 	var sum := Vector3.ZERO
 	var count := 0
 	for hold in holds.values():
-		var pos = hold.get_grab_transform().origin
+		var pos = hold.get_grab_point_transform().origin
 		sum += pos
 		count += 1
 
@@ -410,17 +535,17 @@ func compute_hold_centroid(holds: Dictionary) -> Vector3:
 
 
 func compute_hip_transform(
-	attached_holds: Dictionary,
+	holds: Dictionary,
 	target_pos: Vector3
 ) -> Variant:
-	var hip_pos = compute_hip_position(attached_holds, target_pos)
+	var hip_pos = compute_hip_position(holds, target_pos)
 	
-	var forward = _compute_forward_from_wall(attached_holds)
+	var forward = _compute_forward_from_wall(holds)
 	if forward == null:
 		return null
 
 	var up := _compute_up_direction(
-		attached_holds,
+		holds,
 		forward
 	)
 
@@ -431,13 +556,13 @@ func compute_hip_transform(
 	return Transform3D(basis, hip_pos)
 
 func _compute_forward_from_wall(
-	attached_holds: Dictionary
+	holds: Dictionary
 ) -> Variant:
 	var n := Vector3.ZERO
 	var count := 0
 
-	for key in attached_holds.keys():
-		var hold = attached_holds[key]
+	for key in holds.keys():
+		var hold = holds[key]
 		if hold == null:
 			continue
 
@@ -453,10 +578,10 @@ func _compute_forward_from_wall(
 	return -n.normalized()
 
 func _compute_up_direction(
-	attached_holds: Dictionary,
+	holds: Dictionary,
 	forward: Vector3
 ) -> Vector3:
-	var raw_up := _compute_raw_up_direction(attached_holds)
+	var raw_up := _compute_raw_up_direction(holds)
 
 	# Project to be orthogonal to forward
 	var f := forward.normalized()
@@ -469,15 +594,15 @@ func _compute_up_direction(
 
 
 func _compute_raw_up_direction(
-	attached_holds: Dictionary
+	holds: Dictionary
 ) -> Vector3:
 	var up := Vector3.ZERO
 	var total_weight := 0.0
 	
-	var centroid: Vector3 = compute_hold_centroid(attached_holds)
+	var centroid: Vector3 = compute_hold_centroid(holds)
 
-	for key in attached_holds.keys():
-		var hold = attached_holds[key]
+	for key in holds.keys():
+		var hold = holds[key]
 		if hold == null:
 			continue
 
@@ -486,10 +611,10 @@ func _compute_raw_up_direction(
 
 		match key:
 			"lh", "rh":
-				attach_pos = hold.get_grab_transform().origin
+				attach_pos = hold.get_grab_point_transform().origin
 				weight = 1.0
 			"lf", "rf":
-				attach_pos = hold.get_grab_transform().origin
+				attach_pos = hold.get_grab_point_transform().origin
 				weight = -0.8
 			_:
 				continue
@@ -520,9 +645,9 @@ func compute_ik_errors(target_holds: Dictionary) -> Dictionary:
 	for code in target_holds.keys():
 
 		var hold = target_holds[code]
-		var target_pos = hold.get_grab_transform().origin
+		var target_pos = hold.get_grab_point_transform().origin
 
-		var bone_idx: int = _get_limb_bone_index(code)
+		var bone_idx: int = get_limb_bone_index(code)
 
 		var end_effector_transform: Transform3D = IK_pose[bone_idx]
 		var end_effector_global: Transform3D
@@ -541,7 +666,7 @@ func compute_ik_errors(target_holds: Dictionary) -> Dictionary:
 	res["total"] = total
 	return res
 
-func _get_limb_bone_index(code) -> int:
+func get_limb_bone_index(code) -> int:
 	var bone_idx: int
 	match code:
 			"rh":
