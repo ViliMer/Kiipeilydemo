@@ -260,8 +260,8 @@ func try_reach_pose(omega_IK: Dictionary) -> void:
 			var omega = compute_pose_driven_joint_velocity(joint, saved_joint_angles[joint.name])
 			set_joint_velocity(joint, omega)
 			# Visualize velocity
-			var vel_world = joint.global_transform.basis * omega
-			DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
+			#var vel_world = joint.global_transform.basis * omega
+			#DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
 
 func try_grab() -> void:
 	var threshold_distance = 0.1
@@ -718,8 +718,8 @@ func update_joint_velocity_motors(target: Dictionary) -> void:
 		var omega_target_joint = compute_pose_driven_joint_velocity(joint, target[joint.name])
 		set_joint_velocity(joint, omega_target_joint)
 		
-		var vel_world = joint.global_transform.basis * omega_target_joint
-		DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
+		#var vel_world = joint.global_transform.basis * omega_target_joint
+		#DebugDraw3D.draw_arrow(joint.global_transform.origin,joint.global_transform.origin + vel_world,Color.BLUE,0.01)
 
 func compute_pose_driven_joint_velocity(joint: Generic6DOFJoint3D, target: Quaternion) -> Vector3:
 	var B_joint: Basis = joint.global_basis
@@ -901,19 +901,15 @@ func _on_right_leg_strength_changed(value: float) -> void:
 
 func _on_release_left_hand() -> void:
 	detach_limb("lh")
-	print("Release left hand pressed")
 
 func _on_release_right_hand() -> void:
 	detach_limb("rh")
-	print("Release right hand pressed")
 
 func _on_release_left_foot() -> void:
 	detach_limb("lf")
-	print("Release left foot pressed")
 
 func _on_release_right_foot() -> void:
 	detach_limb("rf")
-	print("Release right foot pressed")
 
 func _on_reach_left_hand() -> void:
 	var reaching_joints = get_reaching_joints()
@@ -1006,7 +1002,6 @@ func _on_right_foot_target_changed(value: int) -> void:
 
 func _on_save_pose() -> void:
 	var res = save_joint_angles()
-	print(res)
 
 func _on_reach_pose() -> void:
 	
@@ -1021,7 +1016,6 @@ func _on_reach_pose() -> void:
 	#print("Right wrist angle: " + str(rad_to_deg(right_wrist_q.get_euler().z)))
 	
 	if reach_pose:
-		print("Disabling motors")
 		reach_pose = false
 		
 		#These lines are currently for joint velocity motors specifically
@@ -1031,7 +1025,6 @@ func _on_reach_pose() -> void:
 		var reaching_joints = get_reaching_joints()
 		enable_velocity_motors(reaching_joints)
 	else:
-		print("Driving motors to reach target pose")
 		reach_pose = true
 		
 		#These lines are currently for joint velocity motors specifically

@@ -113,14 +113,9 @@ func iterate_target_pose(initial_transform: Transform3D, current_holds: Dictiona
 	
 	var reaching_limbs_error: float = errors["total"] - cur_holds_error
 	
-	print("Number of current holds: " + str(number_of_current_holds))
-	print("Total error: " + str(errors["total"]))
-	print("Current holds error:" + str(cur_holds_error))
-	print("Reaching error: " + str(reaching_limbs_error))
-	
 	if errors["total"] < 0.0125 * number_of_current_holds:
 		best_score = 0.0
-		best_score += reaching_limbs_error
+		best_score += reaching_limbs_error * 2
 		best_score += heuristic_hips_close_to_wall(initial_transform, holds_to_consider)
 		best_score += heuristic_COM_supported_wall_plane(current_holds)
 	
@@ -157,13 +152,12 @@ func iterate_target_pose(initial_transform: Transform3D, current_holds: Dictiona
 					continue
 				
 				var score: float = 0.0
-				score += reaching_limbs_error
+				score += reaching_limbs_error * 2
 				score += heuristic_hips_close_to_wall(candidate, holds_to_consider)
 				score += heuristic_COM_supported_wall_plane(current_holds)
 				
 				if score < best_score:
 					best_score = score
-					print(score)
 					best_transform = candidate
 	
 	return best_transform
@@ -259,7 +253,6 @@ func iterate_start_pose(initial_transform: Transform3D, holds: Dictionary) -> Tr
 				
 				if score < best_score:
 					best_score = score
-					print(score)
 					best_transform = candidate
 	
 	return best_transform

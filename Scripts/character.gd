@@ -173,16 +173,6 @@ func _ready() -> void:
 		if physical_bone is PhysicalBone3D:
 			physical_bone.set_script(PhysicalBoneExtension)
 	
-	for bone_idx in skeleton.get_bone_count():
-		var bone_name = skeleton.get_bone_name(bone_idx)
-		if bone_name not in bone_names.keys():
-			continue
-		var bone_transform = skeleton.get_bone_global_pose(bone_idx)
-		var bone_pos = bone_transform.origin
-		var bone_rot = bone_transform.basis.get_euler()
-
-		print("Bone: ", bone_name, ", Bone index: ", bone_idx, " | Global Position:", bone_pos, " | Global Rotation: ", rad_to_deg(bone_rot.x), ", ", rad_to_deg(bone_rot.y), ", ", rad_to_deg(bone_rot.z))
-	
 	for physical_bone_name in bone_structure.keys():
 		cached_descendant_bones[physical_bone_name] = get_all_descendants(physical_bone_name, bone_structure)
 	
@@ -191,8 +181,6 @@ func _ready() -> void:
 	
 	mass = compute_mass()
 	COM_relative_to_hip_bone = compute_COM_relative_to_hip_bone()
-	print("Total climber mass: " + str(mass) + " kg")
-	print("Center of mass relative to hip bone: " + str(COM_relative_to_hip_bone))
 
 
 func _input(event: InputEvent) -> void:
