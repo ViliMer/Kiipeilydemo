@@ -58,15 +58,18 @@ func plan_next_pose(attachments: Dictionary, target_holds: Dictionary) -> Dictio
 	for code in attachments.keys():
 		var attachment = attachments[code]
 		
-		if attachment:
+		if target_holds[code] != null: # If there is a target hold for a limb, it's attachment should not be considered a current hold, even if it still is attached
+			holds_to_consider[code] = target_holds[code]
+		elif attachment != null:
 			current_holds[code] = attachment.hold
 			holds_to_consider[code] = attachment.hold
-		elif target_holds[code]:
-			holds_to_consider[code] = target_holds[code]
 		else:
 			free_limbs.append(code)
 	
 	var target_pos = compute_hold_centroid(holds_to_consider)
+	var forward = _compute_forward_from_wall(holds_to_consider)
+	var up = _compute_up_direction(holds_to_consider, forward)
+	target_pos = target_pos - 0.5 * forward - 0.2 * up
 	
 	var hip_target_transform = compute_hip_transform(holds_to_consider, target_pos)
 	
@@ -74,7 +77,7 @@ func plan_next_pose(attachments: Dictionary, target_holds: Dictionary) -> Dictio
 	var hip_pose_skel = character.IK_skeleton.get_bone_global_pose(hip_idx)
 	var initial_root_target_transform = hip_target_transform * hip_pose_skel.affine_inverse()
 	
-	var new_transform = await iterate_target_pose(initial_root_target_transform, current_holds, target_holds, holds_to_consider, free_limbs)
+	var new_transform = await iterate_target_pose_simulated_annealing(initial_root_target_transform, current_holds, holds_to_consider)
 	
 	character.IK_character_node.global_transform = new_transform
 	
@@ -85,7 +88,35 @@ func plan_next_pose(attachments: Dictionary, target_holds: Dictionary) -> Dictio
 	
 	return result
 
-func iterate_target_pose(initial_transform: Transform3D, current_holds: Dictionary, target_holds: Dictionary, holds_to_consider: Dictionary, free_limbs: Array[String]) -> Transform3D:
+
+func score_pose(candidate: Transform3D, current_holds: Dictionary, holds_to_consider: Dictionary) -> float:
+	character.IK_character_node.global_transform = candidate
+	
+	# Not implemented so far
+	#for limb_code in free_limbs:
+	#	balance_with_free_limb(limb_code)
+	
+	var errors := await compute_ik_errors(holds_to_consider)
+	var cur_holds_error = 0.0
+	var number_of_current_holds = current_holds.size()
+	for code in current_holds.keys():
+		cur_holds_error += errors[code]
+	
+	var reaching_limbs_error: float = errors["total"] - cur_holds_error
+	
+	if cur_holds_error > 0.0125 * number_of_current_holds:
+		return INF
+
+	var score = 0.0
+	score += reaching_limbs_error * 5
+	score += heuristic_hips_low(candidate, holds_to_consider) * 2
+	score += heuristic_hips_close_to_wall(candidate, holds_to_consider)
+	score += heuristic_COM_supported_wall_plane(current_holds) # This fails if there are no current holds
+	
+	return score
+
+
+func iterate_target_pose_random_sampling(initial_transform: Transform3D, current_holds: Dictionary, target_holds: Dictionary, holds_to_consider: Dictionary, free_limbs: Array[String]) -> Transform3D:
 	var best_transform := initial_transform
 	var best_score: float = INF
 	
@@ -98,26 +129,10 @@ func iterate_target_pose(initial_transform: Transform3D, current_holds: Dictiona
 	var max_radius := 0.3
 	var pos_samples := 100
 	
-	# Evaluate initial pos first
-	character.IK_character_node.global_transform = initial_transform
+	var number_of_valid_positions: int = 0
 	
-	for limb_code in free_limbs:
-		balance_with_free_limb(limb_code)
-	
-	var errors := await compute_ik_errors(holds_to_consider)
-	
-	var cur_holds_error = 0.0
-	var number_of_current_holds = current_holds.size()
-	for code in current_holds.keys():
-		cur_holds_error += errors[code]
-	
-	var reaching_limbs_error: float = errors["total"] - cur_holds_error
-	
-	if errors["total"] < 0.0125 * number_of_current_holds:
-		best_score = 0.0
-		best_score += reaching_limbs_error * 2
-		best_score += heuristic_hips_close_to_wall(initial_transform, holds_to_consider)
-		best_score += heuristic_COM_supported_wall_plane(current_holds)
+	best_score = await score_pose(initial_transform, current_holds, holds_to_consider)
+	if best_score < INF: number_of_valid_positions += 1
 	
 	for i in pos_samples:
 		
@@ -135,30 +150,100 @@ func iterate_target_pose(initial_transform: Transform3D, current_holds: Dictiona
 				var basis := sample_oriented_basis(initial_transform.basis, yaw, pitch)
 				var candidate := Transform3D(basis, pos)
 				
-				character.IK_character_node.global_transform = candidate
-				
-				for limb_code in free_limbs:
-					balance_with_free_limb(limb_code)
-				
-				errors = await compute_ik_errors(holds_to_consider)
-				
-				cur_holds_error = 0.0
-				for code in current_holds.keys():
-					cur_holds_error += errors[code]
-				
-				reaching_limbs_error = errors["total"] - cur_holds_error
-				
-				if errors["total"] > 0.0125 * number_of_current_holds:
-					continue
-				
-				var score: float = 0.0
-				score += reaching_limbs_error * 2
-				score += heuristic_hips_close_to_wall(candidate, holds_to_consider)
-				score += heuristic_COM_supported_wall_plane(current_holds)
+				var score: float = await score_pose(candidate, current_holds, holds_to_consider)
+				if score < INF: number_of_valid_positions += 1
 				
 				if score < best_score:
 					best_score = score
 					best_transform = candidate
+	
+	if number_of_valid_positions < 1:
+		print("Did not manage to find valid position")
+	return best_transform
+
+func iterate_target_pose_simulated_annealing(initial_transform: Transform3D, current_holds: Dictionary, holds_to_consider: Dictionary) -> Transform3D:
+	var best_transform := initial_transform
+	var best_score: float = INF
+	
+	var max_radius := 0.3
+	var grid_steps := 5
+	
+	var yaw_samples = [0]
+	var pitch_samples = [0]
+	
+	var number_of_valid_positions: int = 0
+	
+	# 1. GRID SEARCH
+	for xi in range(grid_steps):
+		for yi in range(grid_steps):
+			for zi in range(grid_steps):
+				
+				var fx = float(xi) / (grid_steps - 1) * 2.0 - 1.0
+				var fy = float(yi) / (grid_steps - 1) * 2.0 - 1.0
+				var fz = float(zi) / (grid_steps - 1) * 2.0 - 1.0
+				
+				var offset := Vector3(fx, fy, fz) * max_radius
+				var pos := initial_transform.origin + offset
+				
+				for yaw in yaw_samples:
+					for pitch in pitch_samples:
+						
+						var basis := sample_oriented_basis(initial_transform.basis, yaw, pitch)
+						var candidate := Transform3D(basis, pos)
+						
+						var score: float = await score_pose(candidate, current_holds, holds_to_consider)
+						if score < INF: number_of_valid_positions += 1
+						
+						if score < best_score:
+							best_score = score
+							best_transform = candidate
+	
+	
+	# 2. SIMULATED ANNEALING
+	var current := best_transform
+	var current_score := best_score
+	
+	var temperature := 0.1
+	var cooling_rate := 0.95
+	var iterations := 100
+	
+	for i in range(iterations):
+		
+		# small random perturbation
+		var offset := Vector3(
+			randf_range(-0.05, 0.05),
+			randf_range(-0.05, 0.05),
+			randf_range(-0.05, 0.05)
+		)
+		
+		var yaw := randf_range(-10, 10)
+		var pitch := randf_range(-5, 5)
+		
+		var basis := sample_oriented_basis(current.basis, yaw, pitch)
+		var candidate := Transform3D(basis, current.origin + offset)
+		
+		var new_score: float = await score_pose(candidate, current_holds, holds_to_consider)
+		
+		if new_score == INF:
+			continue
+		
+		number_of_valid_positions += 1
+		
+		var delta: float = new_score - current_score
+		
+		if delta < 0.0 or randf() < exp(-delta / temperature):
+			current = candidate
+			current_score = new_score
+			
+			if current_score < best_score:
+				best_score = current_score
+				best_transform = current
+		
+		temperature *= cooling_rate
+	
+	
+	if number_of_valid_positions < 1:
+		print("Did not manage to find valid position")
 	
 	return best_transform
 
@@ -298,7 +383,16 @@ func heuristic_hips_close_to_wall(current_root_transform: Transform3D, holds: Di
 
 	return signed_distance_from_wall
 
+func heuristic_hips_low(current_root_transform: Transform3D, holds: Dictionary) -> float:
+	var height := current_root_transform.origin.y
+	var hold_centroid_height = compute_hold_centroid(holds).y
+
+	return height - hold_centroid_height
+
 func heuristic_COM_supported_wall_plane(holds: Dictionary) -> float:
+	if holds.size() < 1:
+		return 0
+	
 	var res := 0.0
 
 	# Build wall coordinate frame

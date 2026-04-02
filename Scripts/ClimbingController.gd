@@ -624,22 +624,22 @@ var JOINT_CONSTANTS = {
 # Velocity motor values
 var JOINT_CONSTANTS = {
 	"Spine Joint":			{ "max_torque": 200.0, "omega_max": Vector3(0.5, 0.5, 0.5), "error_scale": Vector3(0.5, 0.5, 0.5), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(100.0, 100.0, 100.0) }, # x = fwd/back, y = twist, z = side to side
-	"LowerChest Joint":		{ "max_torque": 120.0, "omega_max": Vector3(0.5, 0.5, 0.5), "error_scale": Vector3(0.5, 0.5, 0.5), "stiffness": Vector3(10.0, 10.0, 10.0), "damping": Vector3(75.0, 75.0, 75.0) }, # x = fwd/back, y = twist, z = side to side
-	"Chest Joint":			{ "max_torque": 120.0, "omega_max": Vector3(0.5, 0.5, 0.5), "error_scale": Vector3(0.5, 0.5, 0.5), "stiffness": Vector3(10.0, 10.0, 10.0), "damping": Vector3(50.0, 50.0, 50.0) }, # x = fwd/back, y = twist, z = side to side
-	"LeftUpperChest Joint":	{ "max_torque": 120.0, "omega_max": Vector3(0.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.0, 20.0, 100.0), "damping": Vector3(0.0, 30.0, 30.0) }, # x = twist, y = fwd/back, z = up/down
-	"LeftShoulder Joint":	{ "max_torque": 80.0, "omega_max": Vector3(1.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.001, 0.001, 0.001), "damping": Vector3(20.0, 20.0, 20.0) }, # x = twist, y = forward / back, z = lateral raise
-	"LeftElbow Joint":		{ "max_torque": 60.0, "omega_max": Vector3(0.0, 3.0, 0.0), "error_scale": Vector3(1.0, 0.5, 1.0), "stiffness": Vector3(0.0, 0.01, 0.0), "damping": Vector3(0.0, 10.0, 0.0) },
+	"LowerChest Joint":		{ "max_torque": 200.0, "omega_max": Vector3(0.5, 0.5, 0.5), "error_scale": Vector3(0.5, 0.5, 0.5), "stiffness": Vector3(10.0, 10.0, 10.0), "damping": Vector3(75.0, 75.0, 75.0) }, # x = fwd/back, y = twist, z = side to side
+	"Chest Joint":			{ "max_torque": 200.0, "omega_max": Vector3(0.5, 0.5, 0.5), "error_scale": Vector3(0.5, 0.5, 0.5), "stiffness": Vector3(10.0, 10.0, 10.0), "damping": Vector3(50.0, 50.0, 50.0) }, # x = fwd/back, y = twist, z = side to side
+	"LeftUpperChest Joint":	{ "max_torque": 300.0, "omega_max": Vector3(0.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.0, 20.0, 100.0), "damping": Vector3(0.0, 30.0, 30.0) }, # x = twist, y = fwd/back, z = up/down
+	"LeftShoulder Joint":	{ "max_torque": 300.0, "omega_max": Vector3(1.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.001, 0.001, 0.001), "damping": Vector3(20.0, 20.0, 20.0) }, # x = twist, y = forward / back, z = lateral raise
+	"LeftElbow Joint":		{ "max_torque": 180.0, "omega_max": Vector3(0.0, 3.0, 0.0), "error_scale": Vector3(1.0, 0.5, 1.0), "stiffness": Vector3(0.0, 0.01, 0.0), "damping": Vector3(0.0, 10.0, 0.0) },
 	"LeftWrist Joint":		{ "max_torque": 100.0, "omega_max": Vector3(0.5, 0.5, 1.2), "error_scale": Vector3(1.0, 1.0, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(5.0, 5.0, 5.0) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
-	"RightUpperChest Joint":{ "max_torque": 120.0, "omega_max": Vector3(0.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.0, 20.0, 100.0), "damping": Vector3(0.0, 30.0, 30.0) }, # x = twist, y = fwd/back, z = up/down
-	"RightShoulder Joint":	{ "max_torque": 80.0, "omega_max": Vector3(1.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(20.0, 20.0, 20.0) }, # x = twist, y = forward / back, z = lateral raise
-	"RightElbow Joint":		{ "max_torque": 60.0, "omega_max": Vector3(0.0, 3.0, 0.0), "error_scale": Vector3(1.0, 0.5, 1.0), "stiffness": Vector3(0.0, 0.01, 0.0), "damping": Vector3(0.0, 10.0, 0.0) },
+	"RightUpperChest Joint":{ "max_torque": 300.0, "omega_max": Vector3(0.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.0, 20.0, 100.0), "damping": Vector3(0.0, 30.0, 30.0) }, # x = twist, y = fwd/back, z = up/down
+	"RightShoulder Joint":	{ "max_torque": 300.0, "omega_max": Vector3(1.0, 3.0, 3.0), "error_scale": Vector3(1.0, 0.5, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(20.0, 20.0, 20.0) }, # x = twist, y = forward / back, z = lateral raise
+	"RightElbow Joint":		{ "max_torque": 180.0, "omega_max": Vector3(0.0, 3.0, 0.0), "error_scale": Vector3(1.0, 0.5, 1.0), "stiffness": Vector3(0.0, 0.01, 0.0), "damping": Vector3(0.0, 10.0, 0.0) },
 	"RightWrist Joint":		{ "max_torque": 100.0, "omega_max": Vector3(0.5, 0.5, 1.2), "error_scale": Vector3(1.0, 1.0, 0.5), "stiffness": Vector3(0.01, 0.01, 0.01), "damping": Vector3(5.0, 5.0, 5.0) }, # x = supination / pronation, y = abduction / adduction, z = flexion/extension
-	"LeftHip Joint":		{ "max_torque": 150.0, "omega_max": Vector3(4.0, 1.0, 4.0), "error_scale": Vector3(0.75, 1.0, 0.75), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(50.0, 50.0, 50.0) }, # Here y is the twist axis
-	"LeftKnee Joint":		{ "max_torque": 120.0, "omega_max": Vector3(4.0, 0.0, 0.0), "error_scale": Vector3(0.5, 1.0, 1.0), "stiffness": Vector3(0.01, 0.0, 0.0), "damping": Vector3(30.0, 0.0, 0.0) },
-	"LeftAnkle Joint":		{ "max_torque": 100.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
-	"RightHip Joint":		{ "max_torque": 150.0, "omega_max": Vector3(4.0, 1.0, 4.0), "error_scale": Vector3(0.75, 1.0, 0.75), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(50.0, 50.0, 50.0) },
-	"RightKnee Joint":		{ "max_torque": 120.0, "omega_max": Vector3(4.0, 0.0, 0.0), "error_scale": Vector3(0.5, 1.0, 1.0), "stiffness": Vector3(0.01, 0.0, 0.0), "damping": Vector3(30.0, 0.0, 0.0) },
-	"RightAnkle Joint":		{ "max_torque": 100.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
+	"LeftHip Joint":		{ "max_torque": 400.0, "omega_max": Vector3(4.0, 1.0, 4.0), "error_scale": Vector3(0.75, 1.0, 0.75), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(50.0, 50.0, 50.0) }, # Here y is the twist axis
+	"LeftKnee Joint":		{ "max_torque": 300.0, "omega_max": Vector3(4.0, 0.0, 0.0), "error_scale": Vector3(0.5, 1.0, 1.0), "stiffness": Vector3(0.01, 0.0, 0.0), "damping": Vector3(30.0, 0.0, 0.0) },
+	"LeftAnkle Joint":		{ "max_torque": 200.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
+	"RightHip Joint":		{ "max_torque": 400.0, "omega_max": Vector3(4.0, 1.0, 4.0), "error_scale": Vector3(0.75, 1.0, 0.75), "stiffness": Vector3(20.0, 20.0, 20.0), "damping": Vector3(50.0, 50.0, 50.0) },
+	"RightKnee Joint":		{ "max_torque": 300.0, "omega_max": Vector3(4.0, 0.0, 0.0), "error_scale": Vector3(0.5, 1.0, 1.0), "stiffness": Vector3(0.01, 0.0, 0.0), "damping": Vector3(30.0, 0.0, 0.0) },
+	"RightAnkle Joint":		{ "max_torque": 200.0, "omega_max": Vector3(1.0, 1.0, 0.0), "error_scale": Vector3(0.5, 0.5, 1.0), "stiffness": Vector3(0.001, 0.001, 0.0), "damping": Vector3(10.0, 10.0, 0.0) },
 }
 
 func update_joint_torque_motors(target: Dictionary) -> void:
@@ -750,7 +750,7 @@ func compute_pose_driven_joint_velocity(joint: Generic6DOFJoint3D, target: Quate
 
 func compute_desired_end_effector_velocity(current_pos: Vector3, target_pos: Vector3) -> Vector3:
 	var pos_error = target_pos - current_pos
-	var max_vel = 10.0
+	var max_vel = 4.0
 	var error_scale = 0.25
 	var v_desired := Vector3(
 			max_vel * tanh(pos_error.x / error_scale),
@@ -759,7 +759,7 @@ func compute_desired_end_effector_velocity(current_pos: Vector3, target_pos: Vec
 		)
 	return v_desired
 
-func compute_desired_end_effector_angular_velocity(current_rot: Quaternion, target_rot: Quaternion, gain := 1.0, max_ang_vel := 4.0, angle_scale := 1.0) -> Vector3:
+func compute_desired_end_effector_angular_velocity(current_rot: Quaternion, target_rot: Quaternion, gain := 1.0, max_ang_vel := 2.0, angle_scale := 1.0) -> Vector3:
 	var q_err = target_rot * current_rot.inverse()
 
 	if q_err.w < 0.0:
@@ -833,7 +833,7 @@ func compute_rotation_joint_velocities(J: Dictionary, w_desired: Vector3, gain :
 
 func enable_velocity_motors(joints_to_enable: Array) -> void:
 	for joint in joints_to_enable:
-		var max_torque = JOINT_CONSTANTS[joint.name].max_torque * 5
+		var max_torque = JOINT_CONSTANTS[joint.name].max_torque
 		
 		joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
 		joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_MOTOR, true)
